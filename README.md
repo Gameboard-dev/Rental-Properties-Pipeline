@@ -1,10 +1,10 @@
 # Address Parsing
 
-![Example](https://i.imgur.com/m34xrLj.png)
+![image](https://i.imgur.com/m34xrLj.gif)
 
 ---
 
-![Results](docs\images\Excel.png)
+![Image](https://github.com/Gameboard-dev/Summative_Rewrite/blob/main/docs/images/Excel.png)
 
 > **Note:** Viewing CSV files in MS Excel requires **'getData' -> UTF-8** to avoid corrupting non-ASCII characters or turning building codes into dates.
 
