@@ -2,6 +2,10 @@
 
 ![image](https://github.com/Gameboard-dev/Summative_Rewrite/blob/main/imgur.gif)
 
+1. Sends batched API requests to Google Cloud Translate
+2. Runs dockerized Nominatim / LibPostal and Yandex / Azure Maps API calls
+3. Runs manual RegEx parsing and fuzzy matching Armenian place names with 90% match
+
 ---
 
 ![Image](https://github.com/Gameboard-dev/Summative_Rewrite/blob/main/docs/images/Excel.png)
