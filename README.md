@@ -1,6 +1,6 @@
 # Address Parsing
 
-![image](https://i.imgur.com/m34xrLj.gif)
+![image](https://github.com/Gameboard-dev/Summative_Rewrite/blob/main/imgur.gif)
 
 ---
 
