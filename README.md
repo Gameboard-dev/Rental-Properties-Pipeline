@@ -4,7 +4,15 @@
 
 1. Sends batched API requests to Google Cloud Translate
 2. Runs dockerized Nominatim / LibPostal and Yandex / Azure Maps API calls
-3. Runs manual RegEx parsing and fuzzy matching Armenian place names with 90% match
+3. Runs manual RegEx parsing and fuzzy matching hierarchial Armenian place names with 90% match
+4. Normalizes address components
+   
+|                    |                    |                    |
+|--------------------|--------------------|--------------------|
+| a. Country         | e. Lane            | i. Village         |
+| b. Building Code   | f. Block           | j. Administrative Unit |
+| c. Street          | g. Neighbourhood   | k. Province        |
+| d. Street Number   | h. Town            |                    |
 
 ---
 
