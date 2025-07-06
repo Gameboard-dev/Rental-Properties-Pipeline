@@ -1,4 +1,4 @@
-# Address Parsing
+# Address Parsing Pipeline
 
 ![image](https://github.com/Gameboard-dev/Summative_Rewrite/blob/main/imgur.gif)
 
