@@ -1,10 +1,22 @@
-# Address Parsing
+# Address Parsing Pipeline
 
-![Example](https://i.imgur.com/m34xrLj.png)
+![image](https://github.com/Gameboard-dev/Summative_Rewrite/blob/main/imgur.gif)
+
+1. Sends batched API requests to Google Cloud Translate
+2. Runs dockerized Nominatim / LibPostal and Yandex / Azure Maps API calls
+3. Runs manual RegEx parsing and fuzzy matching hierarchial Armenian place names with 90% match
+4. Normalizes address components using the following labels:
+
+|                    |                    |                    |
+|--------------------|--------------------|--------------------|
+| a. Country         | e. Lane            | i. Village         |
+| b. Building Code   | f. Block           | j. Administrative Unit |
+| c. Street          | g. Neighbourhood   | k. Province        |
+| d. Street Number   | h. Town            |                    |
 
 ---
 
-![Results](docs\images\Excel.png)
+![Image](https://github.com/Gameboard-dev/Summative_Rewrite/blob/main/docs/images/Excel.png)
 
 > **Note:** Viewing CSV files in MS Excel requires **'getData' -> UTF-8** to avoid corrupting non-ASCII characters or turning building codes into dates.
 
