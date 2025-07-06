@@ -1,0 +1,17 @@
+python-dotenv
+aiohttp 
+pandas
+google-cloud-translate
+azure-maps-search 
+azure-core
+numpy
+tqdm
+sentence_transformers
+hdbscan
+folium
+sklearn
+matplotlib
+sqlalchemy
+psycopg2-binary
+rapidfuzz
+
