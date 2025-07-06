@@ -1,39 +1,26 @@
 
 
 import ast
-from typing import List, Optional
+from typing import List
 import pandas as pd
 from pathlib import Path
 from pandas import DataFrame, Series
+from scripts.address.normalize import normalize_column, normalize_string
 from scripts.columns import *
 from settings import *
 
 
-FEATURE_PREFIXES = {
-    AMENITIES: 1,
-    APPLIANCES: 2,
-    PARKING: 3
-}
-
-def string_casts(series: Series) -> Series:
+def dtype_string_casts(series: Series) -> Series:
     return series.astype("string").fillna("")
 
 
-def binary_encoding(series: Series) -> Series:
-    mask: Series[bool] = series.str.contains(r"^0$|not available", regex=True, case=False).fillna(False)
-    return (~mask).astype(int)
+def binary_encoding(series: pd.Series) -> pd.Series:
+    contains_mask = series.str.contains(r"^0$|not available", regex=True, case=False, na=False)
+    return (~contains_mask).astype(int)
 
 
 def numeric_casts(series: Series) -> Series:
     return pd.to_numeric(series, errors='coerce')
-
-
-def string_normalization(series: Series) -> Series:
-    return (series
-            .str.replace("none", "", case=False)
-            .str.replace(r'\s+|_', ' ', regex=True)
-            .str.strip()
-            .str.title())
 
 
 def remove_outliers(series: Series, lower: float = 0.01, upper: float = 0.99) -> Series:
@@ -45,16 +32,39 @@ def remove_outliers(series: Series, lower: float = 0.01, upper: float = 0.99) ->
                 & (series <= series.quantile(upper))]
 
 
+FEATURE_PREFIXES = {
+    AMENITIES: 1,
+    APPLIANCES: 2,
+    PARKING: 3
+}
+
+
+def clean_and_comma_separate(x) -> list[str]:
+    if pd.isna(x):
+        return []
+    return [
+        normalized for value in str(x).split(',')
+        if (normalized := normalize_string(value)).strip().lower() not in {'', 'nan'}
+    ]
+
+
 def explode_and_dummify(series: pd.Series, prefix: str) -> pd.DataFrame:
+    '''
+    Turn comma delimited column entries into a Series of lists of strings.
+    Explode (flatten) the lists so each string becomes its own row remaining linked to a (duplicated) row index
+    Create one-hot encoded columns for each unique string with a column prefix
+    Re-group (aggregate) the encoded value by the (duplicated) row index (level=0)
+    '''
+    exploded: pd.Series = series.apply(clean_and_comma_separate).explode()
     return (
-        pd.get_dummies(series.explode(), prefix=prefix)
+        pd.get_dummies(exploded, prefix=prefix)
         .groupby(level=0)
         .sum()
     )
 
 
 def run_type_casts(df: DataFrame) -> DataFrame:
-    df[STRING_COLUMNS] = df[STRING_COLUMNS].apply(string_casts)
+    df[STRING_COLUMNS] = df[STRING_COLUMNS].apply(dtype_string_casts)
     df[NUMERIC_COLUMNS].apply(numeric_casts)
     return df
 
@@ -95,7 +105,7 @@ def map_rows_to_address_components(df: pd.DataFrame, addresses: pd.DataFrame) ->
         return df
 
 
-def sanitize(filename: str, addresses: DataFrame) -> DataFrame:
+def sanitize_raw_datafiles(filename: str, addresses: DataFrame) -> DataFrame:
 
     raw = Path(INPUTS, filename)
     clean = Path(OUTPUTS, filename)
@@ -109,13 +119,17 @@ def sanitize(filename: str, addresses: DataFrame) -> DataFrame:
 
         df = pd.read_csv(raw, encoding="utf-8")
 
-        df = run_type_casts(df)
-
         # Drop superflous columns
         drop = {"Reg_id", "Gender", "Age"} & set(df.columns)
         df.drop(columns=drop, inplace=True)
         
-        df[STRING_COLUMNS] = df[STRING_COLUMNS].apply(string_normalization)
+        columns_to_normalize = [
+            col for col in STRING_COLUMNS
+            if col in df.columns
+            if col not in ADDRESS_COLUMNS
+        ]
+
+        df[columns_to_normalize] = df[columns_to_normalize].apply(normalize_column)
 
         # Binary encoding
         binary = [FURNISHED, BALCONY]
@@ -130,10 +144,12 @@ def sanitize(filename: str, addresses: DataFrame) -> DataFrame:
         dummies = [explode_and_dummify(df[column], prefix) 
                 for column, prefix in FEATURE_PREFIXES.items()]
 
-        df = (pd.concat([df] + dummies, axis=1)
-            .drop(columns=FEATURE_PREFIXES.keys()))
+        df = pd.concat([df.drop(columns=FEATURE_PREFIXES.keys())] + dummies, axis=1)
         
         df = map_rows_to_address_components(df, addresses)
+
+        # Only run type casts once addresses are mapped
+        df = run_type_casts(df)
 
         df.to_csv(Path(OUTPUTS, filename), index=False, encoding="utf-8-sig")
 

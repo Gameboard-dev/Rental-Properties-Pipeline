@@ -1,4 +1,4 @@
-﻿Reg_id,Index,Gender,Age,Construction,New_construction,Elevator,Floor,Floors,Floor_area,Rooms,Bathrooms,Ceiling_height,Balcony,Furnished,Renovation,Children_are_welcome,Pets_allowed,Utility_payments,Address,Price,Currency,Duration,Date,amenities,appliances,parking
+﻿Reg_id,Index,Gender,Age,Construction,New_construction,Elevator,Floor,Floors,Floor_area,Rooms,Bathrooms,Ceiling_height,Balcony,Furnished,Renovation,Children_are_welcome,Pets_allowed,Utility_payments,Address,Price,Currency,Duration,Datetime,amenities,appliances,parking
 2,B0,Male,26,Panels,0,0,4,5,78.0,3,1,2.8,Closed balcony,Available,Major Renovation,12,10,10,"1 թաղամաս, Մեծամոր",130000,AMD,monthly,15/12/2022,none,none,none
 1,B1,Female,47,Monolith,0,1,1,9,65.0,4,1,2.8,Closed balcony,Available,Euro Renovation,11,10,10,"11-я улица 89, Зовуни",16000,AMD,daily,24/11/2022,none,none,none
 5,B2,Male,59,Monolith,0,0,3,3,82.0,3,1,2.7,Closed balcony,Available,Major Renovation,11,11,10,"11-րդ փողոց 6, Գյումրի",200000,AMD,monthly,15/12/2022,none,none,none

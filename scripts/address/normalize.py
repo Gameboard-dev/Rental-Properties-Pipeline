@@ -1,15 +1,30 @@
 import re, logging
-from pandas import DataFrame
+import unicodedata
+
+import pandas as pd
 from scripts.api.translate import is_non_english_string
 from scripts.columns import *
-from scripts.process import string_casts
 
 ORDINAL_SUFFIX = r'(st|nd|rd|th)'
 NEIGHBOURHOOD_SUFFIX = r'(?:district|micro[-\s]?district|micro|neighborhood|quarter)'
 
-def normalize_whitespace(string: str) -> str:
-    ''' Removes extra spaces between words and trailing or leading whitespace '''
-    return re.sub(r'\s+', ' ', string).strip()
+WHITESPACE_RGX = re.compile(r'_|none|\s+', flags=re.IGNORECASE)
+PUNCTUATION_RGX = re.compile(r'[^\w\s]', flags=re.UNICODE)
+
+def normalize_string(value: str) -> str:
+    ''' Applies extreme string normalization. Removes accented characters / spaces / underscores / punctuation '''
+    if pd.isna(value) or not isinstance(value, str):
+        return ''
+    # Replace underscores, 'none', and extra spaces
+    value = WHITESPACE_RGX.sub(' ', value)
+    # Normalize unicode and accented characters
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    # Removes punctuation
+    value = PUNCTUATION_RGX.sub('', value)
+    return value.strip().title()
+
+def normalize_column(col: pd.Series) -> pd.Series:
+    return col.apply(normalize_string)
 
 ORDINAL_RGX = re.compile(rf'(\d+)-?{ORDINAL_SUFFIX}', flags=re.IGNORECASE)
 
@@ -66,7 +81,7 @@ def normalize_address_parts(string: str) -> str:
     if not isinstance(string, str):
         return ""
     try:
-        string = normalize_whitespace(string)
+        string = WHITESPACE_RGX.sub(' ', string)
         string = remove_ascii(string)
 
         if string == "": 

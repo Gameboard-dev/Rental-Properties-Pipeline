@@ -5,32 +5,40 @@ from scripts.address import TESTING_INDEX_PREFIX, TRAINING_INDEX_PREFIX
 from scripts.address.normalize import normalize_address_parts
 from scripts.api.geocode import load_geocoded_components
 from scripts.api.translate import load_translations
-from scripts.process import explode_addresses_on_index, string_casts, unique_values
+from scripts.process import explode_addresses_on_index, dtype_string_casts, unique_values
 from scripts.address.separate import separate_into_unique_components, separate_on_hardcoded_delimiters, separate_hardcoded_regional_labels
 from settings import ADDRESSES, INPUTS, TESTING, TRAINING
 from scripts.columns import *
 
 
+def save_index(df: DataFrame, fileindex: str, file: str) -> DataFrame:
+    df[ADDRESS_INDEX] = [fileindex + str(i) for i in df.index]
+    df.to_csv(INPUTS / file, index=False, encoding="utf-8-sig")
+    logging.debug(f"'{TRAINING}' has been saved with an address-index mapping.")
+    return df
+
+
 def map_address_indices(training: DataFrame, testing: DataFrame) -> DataFrame:
-    """ Loads training and testing address indices from CSV files and groups them on address. """
-    def save_index(df: DataFrame, fileindex: str, file: str) -> DataFrame:
-        df[ADDRESS_INDEX] = [fileindex + str(i) for i in df.index]
-        df.to_csv(INPUTS / file, index=False, encoding="utf-8-sig")
-        logging.debug(f"'{TRAINING}' has been saved with an address index mapping.")
-        return df
+    """ 
+    Loads training and testing address indices from CSV files and groups them on address
+    Associates the indices from the training and testing datasets with the unique address
+    """
+
     training = save_index(training, TRAINING_INDEX_PREFIX, TRAINING)
     testing = save_index(testing, TESTING_INDEX_PREFIX, TESTING)
+
     combined = pd.concat([
         training.dropna(axis=1, how='all'),
         testing.dropna(axis=1, how='all')
     ])
-    # Combine indices from training and testing datasets as per unique address value.
+
     address_indices = (
         combined
         .groupby(ADDRESS)[ADDRESS_INDEX]
         .apply(list)
         .to_frame()
     )
+
     return address_indices
 
 
@@ -41,7 +49,7 @@ def load_address_mapping() -> DataFrame:
     '''
     if ADDRESSES.exists():
         addresses: DataFrame = pd.read_csv(ADDRESSES, encoding="utf-8")
-        addresses[ADDRESS_COLUMNS] = addresses[ADDRESS_COLUMNS].apply(string_casts)
+        addresses[ADDRESS_COLUMNS] = addresses[ADDRESS_COLUMNS].apply(dtype_string_casts)
         return explode_addresses_on_index(addresses, ADDRESS_INDEX)
     else: 
         return DataFrame()
@@ -76,7 +84,7 @@ def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFram
     unique_addresses: DataFrame = load_geocoded_components(unique_addresses) # Obtains geocoded responses for native and english language addresses including coordinates from Nominatim / Yandex / Azure / LibPostal
     
     unique_addresses[BLOCK] = ""; unique_addresses[LANE] = ""
-    unique_addresses[ADDRESS_COLUMNS] = unique_addresses[ADDRESS_COLUMNS].apply(string_casts) # Uses Pandas "string" dtype
+    unique_addresses[ADDRESS_COLUMNS] = unique_addresses[ADDRESS_COLUMNS].apply(dtype_string_casts) # Uses Pandas "string" dtype
 
     logging.debug("Separating streets and cities on hardcoded delimiters.")
 

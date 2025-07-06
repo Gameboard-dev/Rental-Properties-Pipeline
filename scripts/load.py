@@ -2,7 +2,7 @@ import pandas as pd
 from typing import Tuple
 from pandas import DataFrame
 from scripts.address.load import load_address_mapping, process_address_mapping
-from scripts.process import sanitize
+from scripts.process import sanitize_raw_datafiles
 from settings import INPUTS, TRAINING, TESTING
 
 
@@ -13,7 +13,7 @@ def load_raw_datasets() -> Tuple[DataFrame, DataFrame]:
 def load() -> tuple[DataFrame, DataFrame]:
     addresses: DataFrame = load_address_mapping()
     if addresses.empty: addresses = process_address_mapping(*load_raw_datasets())
-    return sanitize(TRAINING, addresses), sanitize(TESTING, addresses)
+    return sanitize_raw_datafiles(TRAINING, addresses), sanitize_raw_datafiles(TESTING, addresses)
 
 
 

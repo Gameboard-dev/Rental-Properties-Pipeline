@@ -4,7 +4,7 @@ from typing import Optional
 import pandas as pd
 from pandas import DataFrame
 from scripts.address.lookup import fuzzy_match, retrieve_armenian_regional_structure, reverse_lookup
-from scripts.address.normalize import NEIGHBOURHOOD_SUFFIX, ORDINAL_RGX, ORDINAL_SUFFIX, normalize_whitespace
+from scripts.address.normalize import NEIGHBOURHOOD_SUFFIX, ORDINAL_RGX, ORDINAL_SUFFIX, WHITESPACE_RGX
 from scripts.columns import *
 
 BLOCK_RGX = re.compile(
@@ -83,8 +83,12 @@ def separate_regex_match(value: str, pattern: re.Pattern, reverse: bool = False,
 
     return pd.Series([value.strip(), matched.strip()])
 
+NUMBERED_STREETS = {
+    "August": "August 23 Street",
+    "Commissars": "26 Commissars Street"
+}
 
-def assign_regex_match(row: pd.Series, pattern: re.Pattern, source_column: str, assign_column: str, reverse: bool = False) -> pd.Series:
+def assign_regex_match(row: pd.Series, pattern: re.Pattern, source_column: str, assign_column: str, reverse: bool = False, keep_original: bool = False) -> pd.Series:
     """
     Helper to extract a regex match and assign it to the appropriate column.
     Preserves the existing assign-column value. Always trims from the source-column value.
@@ -100,9 +104,13 @@ def assign_regex_match(row: pd.Series, pattern: re.Pattern, source_column: str, 
         if existing_assign := str(row.get(assign_column, "")).strip():
             matched = existing_assign
 
-        if assign_column == BUILDING and "August" in trimmed:
-            trimmed = "August 23 Street"
-            matched = ""
+        for name, expanded in NUMBERED_STREETS.items():
+            if assign_column == BUILDING and name in trimmed:
+                trimmed = expanded
+                matched = ""
+
+        if keep_original:
+            trimmed = value
 
         return pd.Series({source_column: trimmed, assign_column: matched})
     
@@ -112,15 +120,15 @@ def assign_regex_match(row: pd.Series, pattern: re.Pattern, source_column: str, 
 
 def fix_generic_streets(row: pd.Series) -> pd.Series:
     '''
-    Fixes cases where the street field is generic by enriching it with the town or zone name 
-    Also removes streets which equal exactly any regional area value.
-    Assumes the row values use Pandas "string" dtypes which can be NA.
+    Fixes cases where the street field is generic (like just 'street') by enriching it with a town or zone name 
+    Removes streets which equal exactly ANY regional value like 'Abovyan'
+    Assumes row values use Pandas "string" dtypes which allow NA values.
     '''
 
     if pd.isna(row[STREET]):
         return row
     
-    stripped: str = normalize_whitespace(str(row[STREET]))
+    stripped: str = WHITESPACE_RGX.sub(' ', str(row[STREET]))
 
     if not stripped: 
         return row
@@ -160,6 +168,9 @@ def separate_into_unique_components(df: DataFrame) -> DataFrame:
         )
 
     df[[NEIGHBOURHOOD, BLOCK]] = df.apply(lambda row: assign_regex_match(row, BLOCK_RGX, NEIGHBOURHOOD, BLOCK), axis=1) # Fixed geocoded neighbourhoods being blocks
+    
+    # Operate on the TRANSLATED column value with the ordinalized Neighbourhood
+    df[[TRANSLATED, BUILDING]] = df.apply(lambda row: assign_regex_match(row, BUILDING_RGX, TRANSLATED, BUILDING, reverse=True, keep_original=True), axis=1) # Fixed missing building codes in geocoded outputs
 
     df = df.apply(fix_generic_streets, axis=1)
 

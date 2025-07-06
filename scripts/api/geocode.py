@@ -53,28 +53,13 @@ async def query_nominatim(address: str, session: aiohttp.ClientSession) -> dict:
         logging.error(f"Nominatim exception for '{address}': {e}")
     return {}
 
-BBOXES = { # https://github.com/sandstrom/country-bounding-boxes/blob/master/bounding-boxes.json
-    "Armenia": [43.58, 38.74, 46.51, 41.25],
-    "Georgia": [39.96, 41.06, 46.64, 43.55],
-    "Azerbaijan": [44.79, 38.27, 50.39, 41.86]
-}
-
-BBOX = "39.96,38.27~50.39,43.86"
-
 async def query_yandex(address: str, session: aiohttp.ClientSession) -> dict:
     """
     Queries the Yandex Geocoder API for a given address
     Restricts the call to addresses within a bounding box (BBOX)
     """
-    params = {
-        'apikey': YANDEX_API_KEY,
-        'geocode': address,
-        'format': 'json',
-        'results': 1,
-        'lang': 'en_US', # Response
-        'bbox': BBOX,
-        'rspn': 1
-    }
+    params = YANDEX_API_PARAMS.copy()
+    params['geocode'] = address
     try:
         async with session.get(YANDEX_API_URL, params=params) as response:
             if response.status == 200:
@@ -102,14 +87,8 @@ async def query_yandex(address: str, session: aiohttp.ClientSession) -> dict:
 async def query_azure(address: str, session: aiohttp.ClientSession) -> dict:
     # Note: Azure Maps API was not needed for the addresses, but included for future extensibility.
     # https://atlas.microsoft.com/search/address/json?api-version=1.0&subscription-key=API_KEY&query=ADDRESS
-    params = {
-        'api-version': '1.0',
-        'subscription-key': AZURE_API_KEY,
-        'query': address,
-        'language': 'en-US',  
-        'countrySet': 'AM,GE,AZ',
-        'limit': 1,         
-    }
+    params = AZURE_API_PARAMS.copy()
+    params['query'] = address
     try:
         async with session.get(AZURE_API_URL, params=params) as response:
             if response.status == 200:
