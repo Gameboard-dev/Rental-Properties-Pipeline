@@ -5,7 +5,7 @@ from scripts.address import TESTING_INDEX_PREFIX, TRAINING_INDEX_PREFIX
 from scripts.address.normalize import normalize_address_parts
 from scripts.api.geocode import load_geocoded_components
 from scripts.api.translate import load_translations
-from scripts.process import explode_addresses_on_index, dtype_string_casts, merge_on_unique
+from scripts.process import explode_addresses_on_index, string_casts, merge_on_unique
 from scripts.address.separate import separate_into_unique_components, separate_on_hardcoded_delimiters, separate_hardcoded_regional_labels
 from settings import ADDRESSES, INPUTS, TESTING, TRAINING
 from scripts.csv_columns import *
@@ -49,7 +49,7 @@ def load_address_mapping() -> DataFrame:
     '''
     if ADDRESSES.exists():
         addresses: DataFrame = pd.read_csv(ADDRESSES, encoding="utf-8")
-        addresses[ADDRESS_COLUMNS] = addresses[ADDRESS_COLUMNS].apply(dtype_string_casts)
+        addresses[ADDRESS_COLUMNS] = addresses[ADDRESS_COLUMNS].apply(string_casts)
         return explode_addresses_on_index(addresses, ADDRESS_INDEX)
     else: 
         return DataFrame()
@@ -84,7 +84,7 @@ def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFram
     unique_addresses: DataFrame = load_geocoded_components(unique_addresses) # Obtains geocoded responses for native and english language addresses including coordinates from Nominatim / Yandex / Azure / LibPostal
     
     unique_addresses[BLOCK] = ""; unique_addresses[LANE] = ""
-    unique_addresses[ADDRESS_COLUMNS] = unique_addresses[ADDRESS_COLUMNS].apply(dtype_string_casts) # Uses Pandas "string" dtype
+    unique_addresses[ADDRESS_COLUMNS] = unique_addresses[ADDRESS_COLUMNS].apply(string_casts) # Uses Pandas "string" dtype
 
     logging.debug("Separating streets and cities on hardcoded delimiters.")
 

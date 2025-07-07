@@ -82,6 +82,9 @@ DB_NAME = "summative"
 DB_ADDRESS = "localhost"
 DB_PORT = 5433 # Changed From Default 5432
 
-engine: Engine = create_engine(f'postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ADDRESS}:{DB_PORT}/{DB_NAME}')
+SQL_COMPILATION_ECHO = True
+
+engine: Engine = create_engine(f'postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ADDRESS}:{DB_PORT}/{DB_NAME}', echo=SQL_COMPILATION_ECHO)
 session: Session = sessionmaker(bind=engine)()
 
+SQL_PATH = OUTPUTS / "database.sql"

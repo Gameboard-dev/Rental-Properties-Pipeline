@@ -9,8 +9,8 @@ from scripts.csv_columns import *
 from settings import *
 
 
-def dtype_string_casts(series: Series) -> Series:
-    return series.astype("string").fillna("")
+def string_casts(series: Series) -> Series:
+    return series.fillna('').astype("string")
 
 
 def binary_encoding(series: pd.Series) -> pd.Series:
@@ -19,7 +19,7 @@ def binary_encoding(series: pd.Series) -> pd.Series:
 
 
 def numeric_casts(series: Series) -> Series:
-    return pd.to_numeric(series, errors='coerce')
+    return pd.to_numeric(series, errors='coerce').fillna(0)
 
 
 def remove_outliers(series: Series, lower: float = 0.01, upper: float = 0.99) -> Series:
@@ -56,12 +56,16 @@ def explode_and_dummify(series: pd.Series, prefix: str) -> pd.DataFrame:
 
 
 def run_type_casts(df: DataFrame) -> DataFrame:
-    df[STRING_COLUMNS] = df[STRING_COLUMNS].apply(dtype_string_casts)
+    df[STRING_COLUMNS] = df[STRING_COLUMNS].apply(string_casts)
     df[NUMERIC_COLUMNS].apply(numeric_casts)
+    df[DATE] = pd.to_datetime(df[DATE], format="%d/%m/%Y").dt.date
+    df[[FURNISHED, BALCONY, ELEVATOR]] = df[[FURNISHED, BALCONY, ELEVATOR]].fillna(False).astype(bool)
+    logging.debug("Column data types after casting:")
+    logging.debug(df.dtypes)
     return df
 
 
-def listify(val):
+def apply_list(val):
     if isinstance(val, str):
         try:
             return ast.literal_eval(val)
@@ -74,7 +78,7 @@ def explode_addresses_on_index(df: DataFrame, index_column: str) -> DataFrame:
     """Explodes a DataFrame on an index column containing stringified or actual lists."""
     if index_column not in df.columns:
         raise KeyError(f"{index_column} needs to be in 'addresses.csv' to explode on index.")
-    df[index_column] = df[index_column].apply(listify)
+    df[index_column] = df[index_column].apply(apply_list)
     return df.explode(index_column).reset_index(drop=True)
 
 
@@ -91,7 +95,8 @@ def map_rows_to_address_components(df: pd.DataFrame, addresses: pd.DataFrame) ->
         on=ADDRESS_INDEX,
         how='left'
     )
-    if SHOW_MISSING_ADDRESS: return df
+    if SHOW_MISSING_ADDRESS: 
+        return df
     else:
         df.drop(columns=['OK'], inplace=True, errors='ignore')
         return df
@@ -127,11 +132,16 @@ def sanitize_raw_datafiles(filename: str, addresses: DataFrame) -> DataFrame:
         binary = [FURNISHED, BALCONY]
         df[binary] = df[binary].apply(binary_encoding)
 
+        # Date encoding
+        df[DATE] = pd.to_datetime(df[DATE], format="%d/%m/%Y").dt.date
+
         # Outlier removal
         df[PRICE] = remove_outliers(df[PRICE], lower=0.10, upper=0.80)
 
+        df[FLOOR_AREA] = df[FLOOR_AREA].fillna(0).astype(int)
+
         # Sanity checks
-        df = df[(df[FLOOR] <= df[FLOORS]) & (df[BATHROOMS] <= df[ROOMS])]
+        df = df[(df[FLOOR] <= df[FLOORS]) & (df[BATHROOMS] <= df[ROOMS]) & (10 < df[FLOOR_AREA])]
 
         dummies = [explode_and_dummify(df[column], prefix) 
                 for column, prefix in PREFIX_MAPPING.items()]
@@ -140,7 +150,6 @@ def sanitize_raw_datafiles(filename: str, addresses: DataFrame) -> DataFrame:
         
         df = map_rows_to_address_components(df, addresses)
 
-        # Only run type casts once addresses are mapped
         df = run_type_casts(df)
 
         df.to_csv(Path(OUTPUTS, filename), index=False, encoding="utf-8-sig")

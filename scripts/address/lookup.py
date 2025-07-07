@@ -4,7 +4,6 @@ from typing import Union
 from numpy import ndarray
 import pandas as pd
 from scripts.csv_columns import *
-from scripts.process import unique_strings
 from settings import ARMENIAN_REGION, FUZZY_MATCH_ACCURACY
 from rapidfuzz import process
 from settings import FUZZY_MATCH_ACCURACY
@@ -62,28 +61,26 @@ def reverse_lookup(name: str, mapping: dict) -> str:
     return mapping.get(name, "")
 
 
-def administrative_pairs(df: pd.DataFrame) -> pd.Series:
-    '''Returns unique (administrative, province) pairs and logs administrative units with no valid province '''
+def administrative_pairs(df: pd.DataFrame) -> list[dict[str, str]]:
+    """Returns unique (administrative, province) pairs and logs administrative units with no valid province."""
 
-    # Drop rows with missing administrative units
     df = df[[ADMINISTRATIVE_UNIT, PROVINCE]].dropna(subset=[ADMINISTRATIVE_UNIT])
 
-    # Ensure both are strings and stripped for type safety and reliability
     df[ADMINISTRATIVE_UNIT] = df[ADMINISTRATIVE_UNIT].astype(str).str.strip()
     df[PROVINCE] = df[PROVINCE].astype(str).str.strip()
 
-    # Identify pairs with one valid province
-    unique_admin_units: ndarray = df[ADMINISTRATIVE_UNIT].unique()
-    valid_pairs: ndarray = df[df[PROVINCE] != ''][ADMINISTRATIVE_UNIT].unique()
+    unique_admin_units = df[ADMINISTRATIVE_UNIT].unique()
+    valid_pairs = df[df[PROVINCE] != ''][ADMINISTRATIVE_UNIT].unique()
 
-    # Log units with no valid province
     for unit in set(unique_admin_units) - set(valid_pairs):
-        logging.warning(f"No valid province found for administrative unit: '{unit}'")
+        logging.error(f"No valid province found for '{unit}'")
 
+    # Return a list of dicts instead of a Series
     return (
         df[(df[ADMINISTRATIVE_UNIT] != '') & (df[PROVINCE] != '')]
         .drop_duplicates()
         .apply(lambda row: {'name': row[ADMINISTRATIVE_UNIT], 'province': row[PROVINCE]}, axis=1)
+        .tolist()
     )
 
 

@@ -1,9 +1,10 @@
 
 from scripts.csv_columns import *
 
+''' Stores database table and column names for reference consistency '''
+
 ROW_INDEX = 'ID'
 
-# Database Tables
 LISTING = 'Listing'
 PROPERTY = 'Property'
 EXCHANGE_RATE = "Exchange Rate"

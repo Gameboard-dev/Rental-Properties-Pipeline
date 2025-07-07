@@ -23,7 +23,7 @@ class AdministrativeDivision(Base):
             ondelete='CASCADE',
             onupdate='CASCADE'
         ),
-        primary_key=True
+        primary_key=True,
     )
 
 class Address(Base):
@@ -42,7 +42,7 @@ class Address(Base):
     __table_args__ = (
         ForeignKeyConstraint(
             [administrative_division, province],
-            ['administrative_division.name', 'administrative_division.province'],
+            [f'{ADMINISTRATIVE_UNIT}.name', f'{ADMINISTRATIVE_UNIT}.province'],
             name='fk_admin_division',
             deferrable=True,
             initially='DEFERRED'
@@ -53,9 +53,6 @@ class Address(Base):
         ),
     )
 
-ADDRESS_DB_COLUMNS: list[str] = Address.columns()
-
-
-
+ADDRESS_DB_COLUMNS: list[str] = Address.table_columns()
 
 
