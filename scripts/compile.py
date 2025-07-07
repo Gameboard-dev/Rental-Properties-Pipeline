@@ -1,7 +1,7 @@
 import logging
 import re
 import pandas as pd
-from sqlalchemy import Insert, Table
+from sqlalchemy import Compiled, Insert, Table
 from sqlalchemy.schema import CreateTable
 from sqlalchemy.dialects.postgresql import insert
 from database import ROW_INDEX, LINKAGE_MAP, LISTING, PROPERTY, TABLES
@@ -14,20 +14,36 @@ from scripts.process import PREFIX_MAPPING
 from scripts.csv_columns import *
 from settings import SQL_PATH, engine
 
+COMPILE_LIST = [PROVINCE, TOWN, RENOVATION, CONSTRUCTION, CURRENCY, ADMINISTRATIVE_UNIT, LISTING, ADDRESS, PROPERTY, AMENITIES, PROPERTY_AMENITIES, APPLIANCES, PROPERTY_APPLIANCES, PARKING, PROPERTY_PARKING]
 
 def build_upserts(df: pd.DataFrame) -> dict[str, list[dict[str, str]]]:
 
     upserts = {}
 
     upserts[PROVINCE] = row_values(df[PROVINCE], 'name')
+
     upserts[TOWN] = row_values(df[TOWN], 'name')
 
     upserts[RENOVATION] = row_values(df[RENOVATION], 'type')
+
     upserts[CONSTRUCTION] = row_values(df[CONSTRUCTION], 'type')
 
     upserts[CURRENCY] = row_values(df[CURRENCY], 'code')
 
     upserts[ADMINISTRATIVE_UNIT] = administrative_pairs(df)
+
+    # *PROPERTY Prerequisites
+
+    upserts[LISTING] = df[LISTING_DB_COLUMNS].to_dict(orient='records')
+
+    upserts[ADDRESS] = df[ADDRESS_DB_COLUMNS].to_dict(orient='records')
+
+    #*
+
+    df_property = df.copy().assign(**{ADDRESS: df[ROW_INDEX], LISTING: df[ROW_INDEX]})
+    upserts[PROPERTY] = df_property[PROPERTY_DB_COLUMNS].to_dict(orient='records')
+
+    # *PROPERTY POSTREQUISITES
 
     for name in [AMENITIES, APPLIANCES, PARKING]:
 
@@ -39,27 +55,13 @@ def build_upserts(df: pd.DataFrame) -> dict[str, list[dict[str, str]]]:
         choices: list[str] = [col[len(prefix):] for col in mask.columns]
         upserts[name] = row_values(choices, 'type')
 
-        linkage = LINKAGE_MAP[name]
+        linkage = LINKAGE_MAP[name] # Property is a prerequisite
         upserts[linkage] = compile_linkage_values(df, name, prefix, list(mask.columns))
 
-    # Values on the same row are linked via ther 'ROW_INDEX' value which applies here.
-
-    upserts[LISTING] = df[LISTING_DB_COLUMNS].to_dict(orient='records')
-    upserts[ADDRESS] = df[ADDRESS_DB_COLUMNS].to_dict(orient='records')
-
-    df_property = df.copy().assign(**{ADDRESS: df[ROW_INDEX], LISTING: df[ROW_INDEX]})
-    upserts[PROPERTY] = df_property[PROPERTY_DB_COLUMNS].to_dict(orient='records')
+    #*
 
     return upserts
-
-
-def compile_tables() -> list[str]:
-    ''' Retrieves compiled SQL statements using CREATE TABLE IF NOT EXISTS '''
-    return [
-        str(CreateTable(Base.metadata.tables[name], if_not_exists=True).compile(engine))
-        for name in TABLES
-    ]
-
+    
 
 def compile_linkage_values(df: pd.DataFrame, name: str, prefix: str, columns: list[str]) -> list[dict[str, str]]:
     ''' Acquires the corresponding Amenities / Appliances / Parking linkage for each Property index '''
@@ -112,10 +114,15 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
     
     sql: list[str] = []
 
-    sql += compile_tables()
     upserts: dict[str, list[dict[str, str]]] = build_upserts(df)
 
     for table_name, row_values in upserts.items():
+
+        if table_name not in COMPILE_LIST:
+            continue
+
+        create: Compiled = CreateTable(Base.metadata.tables[table_name], if_not_exists=True).compile(engine)
+        sql.append(str(create).rstrip() + ";\n")
 
         if not row_values:
             logging.warning(f"No row values for table '{table_name}', skipping.")
@@ -124,8 +131,8 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
         columns: list[str] = list(row_values[0].keys())
         index = columns
 
-        if table_name == PROPERTY:
-            index = ROW_INDEX
+        if table_name in [PROPERTY, LISTING, ADDRESS]:
+            index = [ROW_INDEX]
 
         table: Table = Base.metadata.tables[table_name]
 
@@ -147,7 +154,7 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
             clause = clause.on_conflict_do_nothing(index_elements=index)
 
         compiled_inserts: str = str(clause.compile(dialect=engine.dialect, compile_kwargs={"literal_binds": True}))
-        #compiled_inserts: str = apply_inserts_formatting(compiled_inserts)
+        compiled_inserts: str = apply_inserts_formatting(compiled_inserts)
         sql.append(compiled_inserts)
 
     return '\n'.join(sql)

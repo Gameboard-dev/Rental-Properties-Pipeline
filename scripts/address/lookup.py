@@ -66,18 +66,18 @@ def administrative_pairs(df: pd.DataFrame) -> list[dict[str, str]]:
 
     df = df[[ADMINISTRATIVE_UNIT, PROVINCE]].dropna(subset=[ADMINISTRATIVE_UNIT])
 
-    df[ADMINISTRATIVE_UNIT] = df[ADMINISTRATIVE_UNIT].astype(str).str.strip()
-    df[PROVINCE] = df[PROVINCE].astype(str).str.strip()
+    for col in [PROVINCE, ADMINISTRATIVE_UNIT]:
+        df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else None)
 
+    # Use .notna() instead of != None for clarity and correctness
     unique_admin_units = df[ADMINISTRATIVE_UNIT].unique()
-    valid_pairs = df[df[PROVINCE] != ''][ADMINISTRATIVE_UNIT].unique()
+    valid_pairs = df[df[PROVINCE].notna()][ADMINISTRATIVE_UNIT].unique()
 
     for unit in set(unique_admin_units) - set(valid_pairs):
         logging.error(f"No valid province found for '{unit}'")
 
-    # Return a list of dicts instead of a Series
     return (
-        df[(df[ADMINISTRATIVE_UNIT] != '') & (df[PROVINCE] != '')]
+        df[df[ADMINISTRATIVE_UNIT].notna() & df[PROVINCE].notna()]
         .drop_duplicates()
         .apply(lambda row: {'name': row[ADMINISTRATIVE_UNIT], 'province': row[PROVINCE]}, axis=1)
         .tolist()

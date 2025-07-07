@@ -10,8 +10,11 @@ from settings import *
 
 
 def string_casts(series: Series) -> Series:
-    return series.fillna('').astype("string")
-
+    return (
+        series.apply(lambda x: x.strip() if isinstance(x, str) else x)
+              .replace("", pd.NA)
+              .astype("string")
+    )
 
 def binary_encoding(series: pd.Series) -> pd.Series:
     contains_mask = series.str.contains(r"^0$|not available", regex=True, case=False, na=False)
@@ -60,8 +63,6 @@ def run_type_casts(df: DataFrame) -> DataFrame:
     df[NUMERIC_COLUMNS].apply(numeric_casts)
     df[DATE] = pd.to_datetime(df[DATE], format="%d/%m/%Y").dt.date
     df[[FURNISHED, BALCONY, ELEVATOR]] = df[[FURNISHED, BALCONY, ELEVATOR]].fillna(False).astype(bool)
-    logging.debug("Column data types after casting:")
-    logging.debug(df.dtypes)
     return df
 
 
@@ -135,8 +136,10 @@ def sanitize_raw_datafiles(filename: str, addresses: DataFrame) -> DataFrame:
         # Date encoding
         df[DATE] = pd.to_datetime(df[DATE], format="%d/%m/%Y").dt.date
 
-        # Outlier removal
-        df[PRICE] = remove_outliers(df[PRICE], lower=0.10, upper=0.80)
+        # Drop missing prices and outliers
+        df[PRICE] = pd.to_numeric(df[PRICE], errors='coerce')
+        df = df.dropna(subset=[PRICE])
+        df = df.loc[remove_outliers(df[PRICE], 0.10, 0.80).index].reset_index(drop=True)
 
         df[FLOOR_AREA] = df[FLOOR_AREA].fillna(0).astype(int)
 

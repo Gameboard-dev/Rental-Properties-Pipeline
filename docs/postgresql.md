@@ -50,4 +50,16 @@ This allows changing the default port from `5432` and setting listen addresses.
 The database can be viewed and accessed in [**HeidiSQL**](https://www.heidisql.com/) and entering the configuration details.
 
 
+## Starting PostgreSQL
 
+Use the following:
+
+```bash
+sudo systemctl start postgresql
+```
+
+Verify PostgreSQL is running:
+
+```bash
+sudo systemctl status postgresql
+```
