@@ -1,24 +1,25 @@
 from sqlalchemy import Column, ForeignKey, ForeignKeyConstraint, Integer, String
+from database import ROW_INDEX
 from database.base import Base
-from scripts.columns import *
+from scripts.csv_columns import *
 
 
 class Town(Base):
-    __tablename__ = 'town'
+    __tablename__ = TOWN
     name = Column(String(), primary_key=True)
 
 class Province(Base):
-    __tablename__ = 'province'
+    __tablename__ = PROVINCE
     name = Column(String(), primary_key=True)
 
 class AdministrativeDivision(Base):
-    # Every administrative division has a province.
-    __tablename__ = 'administrative_division'
+    # Assertion: All unique valid or hardcoded administrative divisions have a province with enough data
+    __tablename__ = ADMINISTRATIVE_UNIT
     name = Column(String(), primary_key=True)
     province = Column(
         String(),
         ForeignKey(
-            'province.name',
+            f'{PROVINCE}.name',
             ondelete='CASCADE',
             onupdate='CASCADE'
         ),
@@ -26,16 +27,16 @@ class AdministrativeDivision(Base):
     )
 
 class Address(Base):
-    __tablename__ = 'address'
-    id = Column(Integer(), primary_key=True)
-    province = Base.add_foreign_key(String(), 'province.name', name=PROVINCE)
+    __tablename__ = ADDRESS
+    id = Column(Integer(), primary_key=True, name=ROW_INDEX)
+    province = Base.add_foreign_key(String(), f'{PROVINCE}.name', name=PROVINCE)
     administrative_division = Column(String(), name=ADMINISTRATIVE_UNIT)
     building = Column(String(), name=BUILDING)
     street_number = Column(String(), name=STREET_NUMBER)
     street = Column(String(), name=STREET)
     block = Column(String(), name=BLOCK)
     lane = Column(String(), name=LANE)
-    town = Base.add_foreign_key(String(), 'town.name', name=TOWN)
+    town = Base.add_foreign_key(String(), f'{TOWN}.name', name=TOWN)
     neighborhood = Column(String(), name=NEIGHBOURHOOD)
 
     __table_args__ = (
@@ -52,7 +53,7 @@ class Address(Base):
         ),
     )
 
-
+ADDRESS_DB_COLUMNS: list[str] = Address.columns()
 
 
 

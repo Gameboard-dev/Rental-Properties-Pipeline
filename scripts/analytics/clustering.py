@@ -5,7 +5,7 @@ from hdbscan import HDBSCAN
 from pathlib import Path
 from sklearn.metrics import r2_score, root_mean_squared_error
 from sentence_transformers import SentenceTransformer
-from scripts.columns import NEIGHBOURHOOD, STREET, TOWN
+from scripts.csv_columns import NEIGHBOURHOOD, STREET, TOWN
 from settings import *
 
 '''

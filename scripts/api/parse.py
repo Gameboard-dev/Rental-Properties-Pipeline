@@ -1,7 +1,7 @@
 
 import logging
 from scripts.api import *
-from scripts.columns import *
+from scripts.csv_columns import *
 
 
 def parse_nominatim_components(data: list[dict]) -> dict:

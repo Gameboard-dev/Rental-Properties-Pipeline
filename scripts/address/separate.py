@@ -5,7 +5,7 @@ import pandas as pd
 from pandas import DataFrame
 from scripts.address.lookup import fuzzy_match, retrieve_armenian_regional_structure, reverse_lookup
 from scripts.address.normalize import NEIGHBOURHOOD_SUFFIX, ORDINAL_RGX, ORDINAL_SUFFIX, WHITESPACE_RGX
-from scripts.columns import *
+from scripts.csv_columns import *
 
 BLOCK_RGX = re.compile(
     rf"""

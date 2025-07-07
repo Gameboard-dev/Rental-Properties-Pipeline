@@ -1,12 +1,11 @@
 
 
 import ast
-from typing import List
 import pandas as pd
 from pathlib import Path
 from pandas import DataFrame, Series
 from scripts.address.normalize import normalize_column, normalize_string
-from scripts.columns import *
+from scripts.csv_columns import *
 from settings import *
 
 
@@ -30,13 +29,6 @@ def remove_outliers(series: Series, lower: float = 0.01, upper: float = 0.99) ->
 
     return series[(series >= series.quantile(lower)) 
                 & (series <= series.quantile(upper))]
-
-
-FEATURE_PREFIXES = {
-    AMENITIES: 1,
-    APPLIANCES: 2,
-    PARKING: 3
-}
 
 
 def clean_and_comma_separate(x) -> list[str]:
@@ -86,7 +78,7 @@ def explode_addresses_on_index(df: DataFrame, index_column: str) -> DataFrame:
     return df.explode(index_column).reset_index(drop=True)
 
 
-def unique_values(series: List[Series]) -> Series:
+def merge_on_unique(series: list[Series]) -> Series:
     """Retrieves unique, non-null values from multiple Series into a single Series"""
     return pd.concat(series, ignore_index=True).dropna().drop_duplicates()
 
@@ -142,9 +134,9 @@ def sanitize_raw_datafiles(filename: str, addresses: DataFrame) -> DataFrame:
         df = df[(df[FLOOR] <= df[FLOORS]) & (df[BATHROOMS] <= df[ROOMS])]
 
         dummies = [explode_and_dummify(df[column], prefix) 
-                for column, prefix in FEATURE_PREFIXES.items()]
+                for column, prefix in PREFIX_MAPPING.items()]
 
-        df = pd.concat([df.drop(columns=FEATURE_PREFIXES.keys())] + dummies, axis=1)
+        df = pd.concat([df.drop(columns=PREFIX_MAPPING.keys())] + dummies, axis=1)
         
         df = map_rows_to_address_components(df, addresses)
 

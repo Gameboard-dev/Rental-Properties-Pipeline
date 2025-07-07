@@ -3,7 +3,7 @@ import unicodedata
 
 import pandas as pd
 from scripts.api.translate import is_non_english_string
-from scripts.columns import *
+from scripts.csv_columns import *
 
 ORDINAL_SUFFIX = r'(st|nd|rd|th)'
 NEIGHBOURHOOD_SUFFIX = r'(?:district|micro[-\s]?district|micro|neighborhood|quarter)'

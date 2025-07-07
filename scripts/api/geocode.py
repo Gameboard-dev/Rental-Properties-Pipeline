@@ -4,7 +4,7 @@ from tqdm.asyncio import tqdm_asyncio
 from scripts.address.normalize import normalize_address_parts
 from scripts.api.parse import parse_azure_components, parse_libpostal_components, parse_nominatim_components, parse_yandex_components
 from scripts.api.translate import is_non_english_string
-from scripts.columns import *
+from scripts.csv_columns import *
 from settings import *
 
 YANDEX_API_URL = "https://geocode-maps.yandex.ru/v1/"

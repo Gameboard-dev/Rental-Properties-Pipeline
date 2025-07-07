@@ -5,10 +5,10 @@ from scripts.address import TESTING_INDEX_PREFIX, TRAINING_INDEX_PREFIX
 from scripts.address.normalize import normalize_address_parts
 from scripts.api.geocode import load_geocoded_components
 from scripts.api.translate import load_translations
-from scripts.process import explode_addresses_on_index, dtype_string_casts, unique_values
+from scripts.process import explode_addresses_on_index, dtype_string_casts, merge_on_unique
 from scripts.address.separate import separate_into_unique_components, separate_on_hardcoded_delimiters, separate_hardcoded_regional_labels
 from settings import ADDRESSES, INPUTS, TESTING, TRAINING
-from scripts.columns import *
+from scripts.csv_columns import *
 
 
 def save_index(df: DataFrame, fileindex: str, file: str) -> DataFrame:
@@ -79,7 +79,7 @@ def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFram
 
     logging.debug("Parsing addresses...")
 
-    unique_addresses: DataFrame = (unique_values([training[ADDRESS], testing[ADDRESS]]).astype(str).to_frame(name=ADDRESS).reset_index(drop=True)) # Deduplicated
+    unique_addresses: DataFrame = (merge_on_unique([training[ADDRESS], testing[ADDRESS]]).astype(str).to_frame(name=ADDRESS).reset_index(drop=True)) # Deduplicated
     unique_addresses: DataFrame = load_translations(unique_addresses) # Loads Google Cloud Translate responses.
     unique_addresses: DataFrame = load_geocoded_components(unique_addresses) # Obtains geocoded responses for native and english language addresses including coordinates from Nominatim / Yandex / Azure / LibPostal
     

@@ -4,12 +4,12 @@ import os
 import pandas as pd
 from tqdm import tqdm
 from google.cloud import translate_v2 as translate
-from scripts.columns import ADDRESS, TRANSLATED
-from settings import TRANSLATIONS, GOOGLE_APPLICATION_CREDENTIALS
+from scripts.csv_columns import ADDRESS, TRANSLATED
+from settings import TRANSLATIONS
 
 ''' Runs asynchronous Translate requests to a Google Translate API Wrapper in Python '''
 
-print(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+logging.info(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
 
 MAX_SEGMENTS = 128
 MAX_BYTES = 70_000
@@ -111,12 +111,12 @@ def load_translations(df: pd.DataFrame) -> pd.DataFrame:
 if __name__ == "__main__":
 
     from scripts.load import load_raw_datasets
-    from scripts.process import unique_values
+    from scripts.process import merge_on_unique
 
     # python -m scripts.api.translate
     os.environ["ALWAYS_TRANSLATE"] = "True"
     training, testing = load_raw_datasets()
-    unique_addresses: pd.DataFrame = (unique_values([training[ADDRESS], testing[ADDRESS]]).astype(str).to_frame(name=ADDRESS).reset_index(drop=True))
+    unique_addresses: pd.DataFrame = (merge_on_unique([training[ADDRESS], testing[ADDRESS]]).astype(str).to_frame(name=ADDRESS).reset_index(drop=True))
     unique_addresses = unique_addresses.head(1)
     load_translations(unique_addresses)
 

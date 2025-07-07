@@ -1,4 +1,4 @@
-from scripts.columns import *
+from scripts.csv_columns import *
 
 
 YEREVAN_DISTRICTS: set[str] = {"Ajapnyak", "Avan", "Davtashen", "Erebuni", "Kanaker-Zeytun", "Kentron", "Malatia-Sebastia", "Nor Nork", "Nork-Marash", "Nubarashen", "Shengavit", "Arabkir", "Qanaqer-Zeytun"}
