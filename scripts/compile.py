@@ -4,11 +4,12 @@ import pandas as pd
 from sqlalchemy import Compiled, Insert, Table
 from sqlalchemy.schema import CreateTable
 from sqlalchemy.dialects.postgresql import insert
-from database import ROW_INDEX, LINKAGE_MAP, LISTING, PROPERTY, TABLES
+from database import ROW_INDEX, LINKAGE_MAP, LISTING, PROPERTY
 from database.base import Base
 from database.address import *
 from database.currency import *
 from database.property import *
+from database.feature import *
 from scripts.address.lookup import administrative_pairs, row_values
 from scripts.process import PREFIX_MAPPING
 from scripts.csv_columns import *
@@ -33,18 +34,15 @@ def build_upserts(df: pd.DataFrame) -> dict[str, list[dict[str, str]]]:
     upserts[ADMINISTRATIVE_UNIT] = administrative_pairs(df)
 
     # *PROPERTY Prerequisites
-
     upserts[LISTING] = df[LISTING_DB_COLUMNS].to_dict(orient='records')
 
     upserts[ADDRESS] = df[ADDRESS_DB_COLUMNS].to_dict(orient='records')
-
     #*
 
     df_property = df.copy().assign(**{ADDRESS: df[ROW_INDEX], LISTING: df[ROW_INDEX]})
     upserts[PROPERTY] = df_property[PROPERTY_DB_COLUMNS].to_dict(orient='records')
 
     # *PROPERTY POSTREQUISITES
-
     for name in [AMENITIES, APPLIANCES, PARKING]:
 
         id = PREFIX_MAPPING[name]
@@ -57,7 +55,6 @@ def build_upserts(df: pd.DataFrame) -> dict[str, list[dict[str, str]]]:
 
         linkage = LINKAGE_MAP[name] # Property is a prerequisite
         upserts[linkage] = compile_linkage_values(df, name, prefix, list(mask.columns))
-
     #*
 
     return upserts
@@ -169,5 +166,8 @@ if __name__ == "__main__":
     training, testing = load()
     sql: str = compile_sql([training, testing])
     
-    with open(SQL_PATH, "w", encoding="utf-8") as file:
-        file.write(sql)
+    with open(SQL_PATH, "w", encoding="utf-8") as file: file.write(sql)
+
+
+
+

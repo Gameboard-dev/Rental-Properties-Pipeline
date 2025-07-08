@@ -1,5 +1,5 @@
-from database import LISTING, ROW_INDEX, PROPERTY, PROPERTY_AMENITIES, PROPERTY_APPLIANCES, PROPERTY_PARKING
-from sqlalchemy import Column, Date, Float, ForeignKey, Integer, String, Boolean
+from database import LISTING, PROPERTY_AMENITIES, PROPERTY_APPLIANCES, PROPERTY_PARKING, ROW_INDEX, PROPERTY
+from sqlalchemy import Column, Date, Float, Integer, String, Boolean
 from sqlalchemy.orm import relationship
 from database.base import Base
 from scripts.csv_columns import *
@@ -41,16 +41,6 @@ class Property(Base):
 
 PROPERTY_DB_COLUMNS: list[str] = Property.table_columns()
 
-
-class Feature(Base):
-    __abstract__ = True
-    type = Column(String(), primary_key=True)
-
-'''////////////////////////////////////////////////////////////////////////////'''
-
-class Amenity(Feature):
-    __tablename__ = AMENITIES
-
 class Property_Amenities(Base): 
     __tablename__ = PROPERTY_AMENITIES
     property_id = Base.add_foreign_key(Integer(), f'{PROPERTY}.{ROW_INDEX}', primary_key=True)
@@ -58,22 +48,12 @@ class Property_Amenities(Base):
     property = relationship('Property', backref=AMENITIES)
     amenity = relationship('Amenity', backref=PROPERTY)
 
-'''////////////////////////////////////////////////////////////////////////////'''
-
-class Appliance(Feature):
-    __tablename__ = APPLIANCES
-
 class Property_Appliances(Base):
     __tablename__ = PROPERTY_APPLIANCES
     property_id = Base.add_foreign_key(Integer(), f'{PROPERTY}.{ROW_INDEX}', primary_key=True)
     appliances_type = Base.add_foreign_key(String(), f'{APPLIANCES}.type', primary_key=True)
     property = relationship(PROPERTY, backref=APPLIANCES)
     appliance = relationship(APPLIANCES, backref=PROPERTY)
-
-'''////////////////////////////////////////////////////////////////////////////'''
-
-class Parking(Feature):
-    __tablename__ = PARKING
 
 class Property_Parking(Base):
     __tablename__ = PROPERTY_PARKING

@@ -16,7 +16,7 @@ SHOW_MISSING_ADDRESS = False
 FUZZY_MATCH_ACCURACY = 90
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
@@ -82,9 +82,7 @@ DB_NAME = "summative"
 DB_ADDRESS = "localhost"
 DB_PORT = 5433 # Changed From Default 5432
 
-SQL_COMPILATION_ECHO = True
-
-engine: Engine = create_engine(f'postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ADDRESS}:{DB_PORT}/{DB_NAME}', echo=SQL_COMPILATION_ECHO)
+engine: Engine = create_engine(f'postgresql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ADDRESS}:{DB_PORT}/{DB_NAME}')
 session: Session = sessionmaker(bind=engine)()
 
 SQL_PATH = OUTPUTS / "database.sql"

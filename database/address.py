@@ -29,8 +29,8 @@ class AdministrativeDivision(Base):
 class Address(Base):
     __tablename__ = ADDRESS
     id = Column(Integer(), primary_key=True, name=ROW_INDEX)
-    province = Base.add_foreign_key(String(), f'{PROVINCE}.name', name=PROVINCE)
     administrative_division = Column(String(), name=ADMINISTRATIVE_UNIT)
+    province = Base.add_foreign_key(String(), f'{PROVINCE}.name', name=PROVINCE)
     building = Column(String(), name=BUILDING)
     street_number = Column(String(), name=STREET_NUMBER)
     street = Column(String(), name=STREET)
