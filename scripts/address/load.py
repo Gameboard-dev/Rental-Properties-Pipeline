@@ -7,52 +7,91 @@ from scripts.api.geocode import load_geocoded_components
 from scripts.api.translate import load_translations
 from scripts.process import explode_addresses_on_index, string_casts, merge_on_unique
 from scripts.address.separate import separate_into_unique_components, separate_on_hardcoded_delimiters, separate_hardcoded_regional_labels
-from settings import ADDRESSES, INPUTS, TESTING, TRAINING
+from settings import ADDRESSES, INPUTS, TESTING_FILE, TRAINING_FILE
 from scripts.csv_columns import *
 
 
 def save_index(df: DataFrame, fileindex: str, file: str) -> DataFrame:
-    df[ADDRESS_INDEX] = [fileindex + str(i) for i in df.index]
+    df[ADDRESS_INDEX] = [f"{fileindex}{i}" for i in range(len(df))]
     df.to_csv(INPUTS / file, index=False, encoding="utf-8-sig")
-    logging.debug(f"'{TRAINING}' has been saved with an address-index mapping.")
+    logging.debug(f"'{file}' has been saved with an address-index mapping.")
     return df
 
 
 def map_address_indices(training: DataFrame, testing: DataFrame) -> DataFrame:
-    """ 
-    Loads training and testing address indices from CSV files and groups them on address
-    Associates the indices from the training and testing datasets with the unique address
     """
+    Associates each unique address with a list of row-level address indices
+    from both training and testing datasets.
+    """
+    training = save_index(training, TRAINING_INDEX_PREFIX, TRAINING_FILE)
+    testing = save_index(testing, TESTING_INDEX_PREFIX, TESTING_FILE)
 
-    training = save_index(training, TRAINING_INDEX_PREFIX, TRAINING)
-    testing = save_index(testing, TESTING_INDEX_PREFIX, TESTING)
+    combined = pd.concat([training, testing])
 
-    combined = pd.concat([
-        training.dropna(axis=1, how='all'),
-        testing.dropna(axis=1, how='all')
-    ])
+    # Normalize addresses for consistent grouping
+    combined[ADDRESS] = combined[ADDRESS].str.strip().str.lower()
 
+    # Group by address and collect all row-level indices
     address_indices = (
         combined
         .groupby(ADDRESS)[ADDRESS_INDEX]
         .apply(list)
         .to_frame()
+        .reset_index()
     )
 
     return address_indices
 
 
-def load_address_mapping() -> DataFrame:
+def remap_address_row_indices(training: DataFrame, testing: DataFrame, unique_addresses: DataFrame) -> DataFrame:
+    address_indices_map: DataFrame = map_address_indices(training, testing)
+
+    # Normalize address columns to ensure consistent merging
+    address_indices_map[ADDRESS] = address_indices_map[ADDRESS].str.strip().str.lower()
+    unique_addresses[ADDRESS] = unique_addresses[ADDRESS].str.strip().str.lower()
+
+    # Drop existing ADDRESS_INDEX column if it exists
+    if ADDRESS_INDEX in unique_addresses.columns:
+        unique_addresses = unique_addresses.drop(columns=[ADDRESS_INDEX])
+
+    # Merge with full DataFrame
+    unique_addresses = unique_addresses.merge(address_indices_map, on=ADDRESS, how="left")
+
+    total = len(unique_addresses)
+    missing = unique_addresses[unique_addresses[ADDRESS_INDEX].isna()]
+    mapped = total - len(missing)
+
+    # Log results
+    logging.info(f"{mapped} out of {total} unique addresses successfully mapped to indices.")
+
+    if not missing.empty:
+        logging.warning(f"{len(missing)} addresses could not be mapped:")
+
+    unique_addresses.to_csv(ADDRESSES, index=False, encoding="utf-8-sig")
+    logging.info("Saved and reindexed 'training' and 'testing' data on 'Address'")
+    return unique_addresses
+
+
+ALWAYS_REMAP = False
+
+def load_address_mapping(training: DataFrame, testing: DataFrame) -> DataFrame:
     ''' 
     Loads the address mapping processed and retrieved with process_address_mapping 
     Note some manual corrections were made to 1-2 addresses incorrectly returned by Yandex Maps
     '''
     if ADDRESSES.exists():
+
         addresses: DataFrame = pd.read_csv(ADDRESSES, encoding="utf-8")
+
+        if ADDRESS_INDEX not in training.columns or ADDRESS_INDEX not in testing.columns or ALWAYS_REMAP:
+            logging.info(f"Remapping {len(addresses)} address indices")
+            addresses = remap_address_row_indices(training, testing, addresses)
+
         addresses[ADDRESS_COLUMNS] = addresses[ADDRESS_COLUMNS].apply(string_casts)
         return explode_addresses_on_index(addresses, ADDRESS_INDEX)
+    
     else: 
-        return DataFrame()
+        return process_address_mapping(training, testing)
 
 '''
 The following setup is required in order for the address parsing pipeline to run
@@ -75,6 +114,7 @@ The following setup is required in order for the address parsing pipeline to run
 
 '''
 
+
 def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFrame:
 
     logging.debug("Parsing addresses...")
@@ -84,8 +124,7 @@ def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFram
     unique_addresses: DataFrame = load_geocoded_components(unique_addresses) # Obtains geocoded responses for native and english language addresses including coordinates from Nominatim / Yandex / Azure / LibPostal
     
     unique_addresses[BLOCK] = ""; unique_addresses[LANE] = ""
-    unique_addresses[ADDRESS_COLUMNS] = unique_addresses[ADDRESS_COLUMNS].apply(string_casts) # Uses Pandas "string" dtype
-
+    
     logging.debug("Separating streets and cities on hardcoded delimiters.")
 
     unique_addresses[[STREET, TOWN]] = unique_addresses.apply( # Uses "," and "›" separators for failed geocoding attempts.
@@ -110,9 +149,11 @@ def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFram
     
     logging.debug("Mapping row address indices in training and testing sets.")
 
+    unique_addresses[ADDRESS_COLUMNS] = unique_addresses[ADDRESS_COLUMNS].apply(string_casts) # Uses Pandas "string" dtype
+
     address_indices_map: DataFrame = map_address_indices(training, testing) # Map row indices in datasets to lists of row indices in unique_addresses
-    unique_addresses = unique_addresses.merge(address_indices_map[ADDRESS_INDEX], on=ADDRESS, how="left")
-    
+    unique_addresses = unique_addresses.merge(address_indices_map, on=ADDRESS, how="left")
+
     unique_addresses.to_csv(ADDRESSES, index=False, encoding="utf-8-sig")
 
     logging.debug("All addresses have been parsed and saved.")
@@ -122,7 +163,6 @@ def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFram
 
 
 if __name__ == "__main__":
-
     # python -m scripts.address.load
     from scripts.load import load_raw_datasets
     process_address_mapping(*load_raw_datasets())

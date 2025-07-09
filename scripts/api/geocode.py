@@ -238,7 +238,6 @@ if __name__ == "__main__":
     os.environ["ALWAYS_GEOCODE"] = "True"
     if TRANSLATIONS.exists():
         df = pd.read_csv(TRANSLATIONS, encoding="utf-8-sig")
-        df = df.head(2)
         geocoded: pd.DataFrame = load_geocoded_components(df)
         geocoded.to_csv(GEOCODED, index=False, encoding="utf-8-sig")
     else:

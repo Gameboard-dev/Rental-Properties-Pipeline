@@ -16,7 +16,7 @@ SHOW_MISSING_ADDRESS = False
 FUZZY_MATCH_ACCURACY = 90
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
@@ -29,8 +29,8 @@ REF = Path("data", "ref")
 REF_CSV = REF / "csv"
 REF_JSON = REF / "json"
 
-TRAINING = "training.csv"
-TESTING = "testing.csv"
+TRAINING_FILE = "apartment_for_rent_train.csv"
+TESTING_FILE = "apartment_for_rent_test.csv"
 
 ADDRESSES = REF_CSV / "addresses.csv"
 TRANSLATIONS = REF_CSV / "translated.csv"

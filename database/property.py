@@ -37,27 +37,36 @@ class Property(Base):
     balcony = Column(Boolean(), name=BALCONY)
     furnished = Column(Boolean(), name=FURNISHED)
     elevator = Column(Boolean(), name=ELEVATOR)
+    children_welcome = Column(Integer(), name='Children Welcome')
+    pets_allowed = Column(Integer(), name='Pets Allowed')
+    utility_payments = Column(Integer(), name='Utility Payments')
     listing = Base.add_foreign_key(Integer(), f'{LISTING}.{ROW_INDEX}', name=LISTING)
 
 PROPERTY_DB_COLUMNS: list[str] = Property.table_columns()
 
+def property_id_fk():
+    return Base.add_foreign_key(Integer(), f'{PROPERTY}.{ROW_INDEX}', name="Property_ID", primary_key=True)
+
+def feature_fk(type_name: str):
+    return Base.add_foreign_key(String(), f'{type_name}.type', primary_key=True, name=f'{type_name}_type')
+
 class Property_Amenities(Base): 
     __tablename__ = PROPERTY_AMENITIES
-    property_id = Base.add_foreign_key(Integer(), f'{PROPERTY}.{ROW_INDEX}', primary_key=True)
-    amenities_type = Base.add_foreign_key(String(), f'{AMENITIES}.type', primary_key=True)
+    property_id = property_id_fk()
+    Amenities_type = feature_fk(AMENITIES)
     property = relationship('Property', backref=AMENITIES)
     amenity = relationship('Amenity', backref=PROPERTY)
 
 class Property_Appliances(Base):
     __tablename__ = PROPERTY_APPLIANCES
-    property_id = Base.add_foreign_key(Integer(), f'{PROPERTY}.{ROW_INDEX}', primary_key=True)
-    appliances_type = Base.add_foreign_key(String(), f'{APPLIANCES}.type', primary_key=True)
+    property_id = property_id_fk()
+    Appliances_type = feature_fk(APPLIANCES)
     property = relationship(PROPERTY, backref=APPLIANCES)
     appliance = relationship(APPLIANCES, backref=PROPERTY)
 
 class Property_Parking(Base):
     __tablename__ = PROPERTY_PARKING
-    property_id = Base.add_foreign_key(Integer(), f'{PROPERTY}.{ROW_INDEX}', primary_key=True)
-    parking_type = Base.add_foreign_key(String(), f'{PARKING}.type', primary_key=True)
+    property_id = property_id_fk()
+    parking_type = feature_fk(PARKING)
     property = relationship('Property', backref=PARKING)
     parking = relationship('Parking', backref=PROPERTY)

@@ -117,7 +117,6 @@ if __name__ == "__main__":
     os.environ["ALWAYS_TRANSLATE"] = "True"
     training, testing = load_raw_datasets()
     unique_addresses: pd.DataFrame = (merge_on_unique([training[ADDRESS], testing[ADDRESS]]).astype(str).to_frame(name=ADDRESS).reset_index(drop=True))
-    unique_addresses = unique_addresses.head(1)
     load_translations(unique_addresses)
 
 

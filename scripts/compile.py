@@ -1,5 +1,6 @@
 import logging
 import re
+import numpy as np
 import pandas as pd
 from sqlalchemy import Compiled, Insert, Table
 from sqlalchemy.schema import CreateTable
@@ -15,7 +16,7 @@ from scripts.process import PREFIX_MAPPING
 from scripts.csv_columns import *
 from settings import SQL_PATH, engine
 
-COMPILE_LIST = [PROVINCE, TOWN, RENOVATION, CONSTRUCTION, CURRENCY, ADMINISTRATIVE_UNIT, LISTING, ADDRESS, PROPERTY, AMENITIES, PROPERTY_AMENITIES, APPLIANCES, PROPERTY_APPLIANCES, PARKING, PROPERTY_PARKING]
+COMPILE_LIST = [PROVINCE, TOWN, RENOVATION, CONSTRUCTION, CURRENCY, EXCHANGE_RATE, ADMINISTRATIVE_UNIT, LISTING, ADDRESS, PROPERTY, AMENITIES, PROPERTY_AMENITIES, APPLIANCES, PROPERTY_APPLIANCES, PARKING, PROPERTY_PARKING]
 
 def build_upserts(df: pd.DataFrame) -> dict[str, list[dict[str, str]]]:
 
@@ -32,6 +33,8 @@ def build_upserts(df: pd.DataFrame) -> dict[str, list[dict[str, str]]]:
     upserts[CURRENCY] = row_values(df[CURRENCY], 'code')
 
     upserts[ADMINISTRATIVE_UNIT] = administrative_pairs(df)
+
+    upserts[EXCHANGE_RATE] = ExchangeRate.load_exchange_rates()
 
     # *PROPERTY Prerequisites
     upserts[LISTING] = df[LISTING_DB_COLUMNS].to_dict(orient='records')
@@ -66,7 +69,7 @@ def compile_linkage_values(df: pd.DataFrame, name: str, prefix: str, columns: li
     if df[columns].sum(axis=1).eq(0).all():
         return []
 
-    linkage_column = f'{PROPERTY}_{ROW_INDEX}'.lower()
+    linkage_column = f'{PROPERTY}_{ROW_INDEX}'
 
     melted: pd.DataFrame = (
         df[columns + [ROW_INDEX]]
@@ -107,6 +110,11 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
     ''' Takes a cleaned and parsed DataFrame and compiles SQL inserts for a PostgreSQL database '''
 
     df: pd.DataFrame = pd.concat([*datasets], ignore_index=True)
+
+    df = df.head(1)
+
+    df = df.replace({pd.NA: None, np.nan: None, "": None}) # Renders NULL
+
     df[ROW_INDEX] = df.index # Primary / Foreign of Properties / Listings
     
     sql: list[str] = []
@@ -119,7 +127,7 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
             continue
 
         create: Compiled = CreateTable(Base.metadata.tables[table_name], if_not_exists=True).compile(engine)
-        sql.append(str(create).rstrip() + ";\n")
+        #sql.append(str(create).rstrip() + ";\n")
 
         if not row_values:
             logging.warning(f"No row values for table '{table_name}', skipping.")
@@ -130,6 +138,9 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
 
         if table_name in [PROPERTY, LISTING, ADDRESS]:
             index = [ROW_INDEX]
+
+        if table_name == EXCHANGE_RATE:
+            index = [CURRENCY, DATE]
 
         table: Table = Base.metadata.tables[table_name]
 

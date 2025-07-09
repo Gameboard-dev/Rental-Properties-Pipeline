@@ -11,8 +11,11 @@ from database.property import *
 from database.feature import *
 from database.base import Base
 
+# Note: You need to install Graphviz as a prerequisite for the code to work
+# https://graphviz.org/download/
+
 # ─────────────────────────────────────────────────────────────
-# CONFIGURATION
+# CONFIG
 # ─────────────────────────────────────────────────────────────
 
 metadata = Base.metadata
@@ -21,7 +24,7 @@ LAYOUT_CONFIG = {
     "rankdir": "LR",
     "splines": "true",
     "overlap": "false",
-    "ranksep": "1.3",
+    "ranksep": "1.5",
     "nodesep": "0.8",
 }
 
@@ -119,7 +122,7 @@ def sqlalchemy_model(table_name: str) -> type | None:
 
 
 # ─────────────────────────────────────────────────────────────
-# DIAGRAM CONSTRUCTION
+# DIAGRAM
 # ─────────────────────────────────────────────────────────────
 
 def add_table_node(graph: Digraph, table: Table):
@@ -260,16 +263,17 @@ def build_a_html_legend(canvas: Digraph) -> None:
 
 
 # ─────────────────────────────────────────────────────────────
-# MAIN FUNCTION
+# MAIN
 # ─────────────────────────────────────────────────────────────
 
 def render_entity_relationship_diagram():
     canvas = Digraph(comment='UML ER Diagram', engine='dot')
+    canvas.attr(bgcolor="transparent")
     canvas.attr(**LAYOUT_CONFIG)
     add_tables(canvas, metadata)
     add_connectors(canvas, metadata)
     build_a_html_legend(canvas)
-    canvas.render('UML_ER_Diagram', format='pdf', view=True)
+    canvas.render('UML_ER_Diagram', format='svg', view=True)
 
 
 if __name__ == '__main__':
