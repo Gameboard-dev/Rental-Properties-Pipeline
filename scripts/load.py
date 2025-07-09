@@ -18,12 +18,9 @@ def load() -> tuple[DataFrame, DataFrame]:
     ''' Loads '''
     training, testing = load_raw_datasets()
     training, testing = run_prerequisite_column_check(training, testing) # Testing lacks proper column names. Order matches training.
-    
     addresses = load_address_mapping(training, testing)
-
     training = sanitize_data(training, TRAINING_FILE, addresses)
     testing = sanitize_data(testing, TESTING_FILE, addresses)
-    
     return training, testing
 
 

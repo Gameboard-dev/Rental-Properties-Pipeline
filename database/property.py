@@ -26,6 +26,7 @@ class Property(Base):
     __tablename__ = PROPERTY
     id = Column(Integer(), primary_key=True, name=ROW_INDEX)
     address = Base.add_foreign_key(Integer(), f'{ADDRESS}.{ROW_INDEX}', name=ADDRESS)
+    new_construction = Column(Boolean(), name=NEW_CONSTRUCTION)
     floor = Column(Integer(), name=FLOOR)
     floors = Column(Integer(), name=FLOORS)
     floor_area = Column(Integer(), name=FLOOR_AREA)

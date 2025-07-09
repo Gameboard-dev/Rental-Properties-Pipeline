@@ -20,6 +20,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
+logging.getLogger("graphviz").setLevel(logging.WARNING)
+
 ''' PATHS '''
 
 OUTPUTS = Path("data", "outputs")

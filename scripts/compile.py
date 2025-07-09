@@ -111,8 +111,6 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
 
     df: pd.DataFrame = pd.concat([*datasets], ignore_index=True)
 
-    df = df.head(1)
-
     df = df.replace({pd.NA: None, np.nan: None, "": None}) # Renders NULL
 
     df[ROW_INDEX] = df.index # Primary / Foreign of Properties / Listings
@@ -127,7 +125,7 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
             continue
 
         create: Compiled = CreateTable(Base.metadata.tables[table_name], if_not_exists=True).compile(engine)
-        #sql.append(str(create).rstrip() + ";\n")
+        sql.append(str(create).rstrip() + ";\n")
 
         if not row_values:
             logging.warning(f"No row values for table '{table_name}', skipping.")
@@ -177,7 +175,8 @@ if __name__ == "__main__":
     training, testing = load()
     sql: str = compile_sql([training, testing])
     
-    with open(SQL_PATH, "w", encoding="utf-8") as file: file.write(sql)
+    with open(SQL_PATH, "w", encoding="utf-8") as file: 
+        file.write(sql)
 
 
 

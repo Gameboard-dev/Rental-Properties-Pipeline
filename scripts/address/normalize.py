@@ -23,7 +23,7 @@ def normalize_string(value: str) -> str:
     value = PUNCTUATION_RGX.sub('', value)
     return value.strip().title()
 
-def normalize_column(col: pd.Series) -> pd.Series:
+def title_strip_remove_punctuation_whitespace(col: pd.Series) -> pd.Series:
     return col.apply(normalize_string)
 
 ORDINAL_RGX = re.compile(rf'(\d+)-?{ORDINAL_SUFFIX}', flags=re.IGNORECASE)
