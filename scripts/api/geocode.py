@@ -1,4 +1,7 @@
 import asyncio, aiohttp
+import re
+from collections import OrderedDict, defaultdict
+from typing import Any, Optional, Tuple
 import pandas as pd
 from tqdm.asyncio import tqdm_asyncio
 from scripts.address.normalize import normalize_address_parts
@@ -14,19 +17,55 @@ LIBPOSTAL_API_URL = "http://localhost:8001/parse"
 
 STATUS_COLUMN = "Status"
 
-''' 
-Takes a DataFrame with native and English translations of addresses.
-Geocodes Armenian addresses using multiple providers:
-- Nominatim (OpenStreetMap) assuming a local instance running on 8080
-- Yandex Geocoder API with a bounding box restricted to Armenia, Georgia, and Azerbaijan
-- Azure Maps Geocoder API with a country set restricted to Armenia, Georgia, and Azerbaijan
-- Tries each geocoding service in turn until one succeeds.
-- Attempts the native address, and then falls back to the English translation.
-- If all else fails, uses the LibPostal statistical parser as a fallback.
-- Uses asynchronous requests to speed up the geocoding process.
-- Handles errors and logs them.
-- Returns results in English and parses them into standardized columns.
-'''
+MAX_RETRIES = 4
+RETRY_BACKOFF = 5  # seconds
+
+"""
+'scripts.api.geocode'
+
+Normalizes Armenian address records in a pandas DataFrame using a
+multi-provider strategy. All results are returned in English and parsed into
+normalized columns.
+
+Parameters
+----------
+df : pandas.DataFrame
+    DataFrame must include the following columns:
+      - address: original address with Armenian or Russian characters
+      - translation: address in English
+
+Workflow
+--------
+For each row, attempts to geocode in this order until a match is found:
+  1. Local Nominatim (OpenStreetMap) instance running on http://localhost:8080  
+  2. Yandex API (restricted to a bounding box covering Armenia, Georgia, Azerbaijan)  
+  3. Azure Maps API (restricted to the same countries)
+
+With each provider:
+  - Try the native address
+  - Fall back to the English address
+
+Fallback:
+  - LibPostal with delimiter-based splitting and fuzzy matching  
+
+Concurrency & Reliability
+-------------------------
+  - Uses asyncio + aiohttp for asynchronous API requests  
+  - Implements retry logic, error handling, and logging  
+
+Returns
+-------
+Normalized addresses with the following:
+
+    - latitude              - village
+    - longitude             - neighbourhood
+    - country               - street_name
+    - province              - lane
+    - administrative_unit   - block
+    - town                  - building_code
+    - street_number
+
+"""
 
 async def query_nominatim(address: str, session: aiohttp.ClientSession) -> dict:
     # See Docker setup instructions ; docker start nominatim
@@ -53,39 +92,44 @@ async def query_nominatim(address: str, session: aiohttp.ClientSession) -> dict:
         logging.error(f"Nominatim exception for '{address}': {e}")
     return {}
 
+
 async def query_yandex(address: str, session: aiohttp.ClientSession) -> dict:
-    """
-    Queries the Yandex Geocoder API for a given address
-    Restricts the call to addresses within a bounding box (BBOX)
-    """
     params = YANDEX_API_PARAMS.copy()
     params['geocode'] = address
-    try:
-        async with session.get(YANDEX_API_URL, params=params) as response:
-            if response.status == 200:
-                try:
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            async with session.get(YANDEX_API_URL, params=params) as response:
+                if response.status == 200:
                     data = await response.json()
                     if not data:
-                        logging.error(f"Yandex returned an empty response for {address}")
+                        logging.error(f"Yandex returned empty response for '{address}'")
                         return {}
-                    components: dict = parse_yandex_components(data)
-                    components['api'] = 'Yandex'
-                    logging.info(f"Yandex geocoded address '{address}' successfully.")
-                    return components
-                except (IndexError, KeyError, ValueError) as e:
-                    logging.error(f"Yandex failed to parse address '{address}': {e}")
+                    components, formatted = parse_yandex_components(data)
+                    if components and formatted:
+                        components['api'] = 'Yandex'
+                        logging.info(f"Yandex geocoded '{address}' as '{formatted}'")
+                        return components
+                    else:
+                        logging.warning(f"Yandex failed to parse components for '{address}'")
+                        return {}
+                elif response.status == 429:
+                    retry_after = response.headers.get("Retry-After")
+                    delay = int(retry_after) if retry_after else RETRY_BACKOFF * attempt
+                    logging.warning(f"Yandex rate-limited on '{address}' (429). Retrying after {delay}s...")
+                    await asyncio.sleep(delay)
+                else:
+                    logging.error(f"Yandex error for '{address}' — status {response.status}")
                     return {}
-            else:
-                logging.error(f"Yandex failed for address '{address}' with status {response.status}")
-                return {}
+        except Exception as e:
+            logging.warning(f"Yandex retry {attempt}/{MAX_RETRIES} failed for '{address}': {e}")
+            await asyncio.sleep(RETRY_BACKOFF * attempt)
+    return {}
 
-    except Exception as e:
-        logging.error(f"Yandex encountered an exception when geocoding address '{address}': {e}")
-        return {}
+
 
 
 async def query_azure(address: str, session: aiohttp.ClientSession) -> dict:
-    # Note: Azure Maps API was not needed for the addresses, but included for future extensibility.
     # https://atlas.microsoft.com/search/address/json?api-version=1.0&subscription-key=API_KEY&query=ADDRESS
     params = AZURE_API_PARAMS.copy()
     params['query'] = address
@@ -100,10 +144,11 @@ async def query_azure(address: str, session: aiohttp.ClientSession) -> dict:
                     return {}
                 
                 try:
-                    components = parse_azure_components(results)
-                    components['api'] = 'Azure'
-                    logging.info(f"Azure geocoded address '{address}' successfully.")
-                    return components
+                    components, formatted = parse_azure_components(results)
+                    if components and formatted:
+                        components['api'] = 'Azure'
+                        logging.info(f"Azure geocoded address '{address}' as '{formatted}' successfully.")
+                        return components
                 except (IndexError, KeyError) as e:
                     logging.error(f"Encountered an error when parsing Azure response for '{address}': {e}")
                     return {}
@@ -115,40 +160,34 @@ async def query_azure(address: str, session: aiohttp.ClientSession) -> dict:
         return {}
 
 
-async def query_libpostal(address: str, session: aiohttp.ClientSession) -> dict:
-    ''' LibPostal is used as a fallback parsing method in case no services finds a known address '''
-    try:
-        async with session.get(LIBPOSTAL_API_URL, params={"address": address}) as response:
-            if response.status == 200:
-                data = await response.json()
-                if not data:
-                    return {}
-                components = {label: value for value, label in data}
-                components = parse_libpostal_components(components)
-                components["api"] = "Libpostal"
-                return components
-            else:
-                logging.error(f"Libpostal failed for address '{address}' with status {response.status}")
-    except Exception as e:
-        logging.error(f"Libpostal exception for '{address}': {e}")
-    return {}
-
-
 def address_candidates(row: pd.Series) -> list[str]:
     """ Extracts address candidates using hardcoded columns. """
     return [address for s in (row.get(ADDRESS, ''), row.get(TRANSLATED, '')) if (address := str(s).strip())]
 
-async def try_geocoders(address: str, session: aiohttp.ClientSession, english_characters: bool) -> dict:
-    for query in [
-        query_nominatim,
-        query_azure if english_characters else None,
-        query_yandex,
-    ]:
-        if query:
-            response: dict = await query(address, session)
-            if response:
-                return response
-    return {}
+
+
+GEOCODERS = OrderedDict([
+    ("Yandex", query_yandex),
+    ("Nominatim", query_nominatim),
+    ("Azure", query_azure)
+])
+
+GEOCODERS_REVERSED = OrderedDict(reversed(list(GEOCODERS.items())))
+
+async def try_geocoders_on_row(address: str, session: aiohttp.ClientSession) -> dict:
+
+    geocoders: dict = GEOCODERS if is_non_english_string(address) else GEOCODERS_REVERSED
+        
+    results: dict[str, Any] = {}
+
+    for name, query in geocoders.items():
+        if response := await query(address, session):
+            for key, value in response.items():
+                if key not in results:
+                    results[key] = value
+
+    return dict(results)
+
 
 async def geocode_row(row: pd.Series, session: aiohttp.ClientSession) -> dict:
     """
@@ -173,16 +212,14 @@ async def geocode_row(row: pd.Series, session: aiohttp.ClientSession) -> dict:
         if not candidate: 
             continue
 
-        english_characters: bool = not is_non_english_string(candidate)
-
-        if components := await try_geocoders(candidate, session, english_characters):
+        if components := await try_geocoders_on_row(candidate, session):
 
             row[STATUS_COLUMN] = 'OK'
             
             for key, value in components.items(): 
                 row[key] = value
 
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(2)
             return row.to_dict()
 
     row[STATUS_COLUMN] = 'FAILED'

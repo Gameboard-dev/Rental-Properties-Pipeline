@@ -3,7 +3,7 @@ from scripts.entity import render_entity_relationship_diagram
 from scripts.load import load
 from settings import SQL_PATH
 
-training, testing = load()
+training, testing, addresses = load()
 
 '''
 sql: str = compile_sql([training, testing])

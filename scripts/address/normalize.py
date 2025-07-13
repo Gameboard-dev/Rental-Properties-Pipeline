@@ -1,7 +1,7 @@
 import re, logging
 import unicodedata
-
 import pandas as pd
+from database.currency import ExchangeRate
 from scripts.api.translate import is_non_english_string
 from scripts.csv_columns import *
 
@@ -12,7 +12,7 @@ WHITESPACE_RGX = re.compile(r'_|none|\s+', flags=re.IGNORECASE)
 PUNCTUATION_RGX = re.compile(r'[^\w\s]', flags=re.UNICODE)
 
 def normalize_string(value: str) -> str:
-    ''' Applies extreme string normalization. Removes accented characters / spaces / underscores / punctuation '''
+    ''' Applies string normalization. Removes accented characters / spaces / underscores / punctuation '''
     if pd.isna(value) or not isinstance(value, str):
         return ''
     # Replace underscores, 'none', and extra spaces
@@ -100,3 +100,27 @@ def normalize_address_parts(string: str) -> str:
         logging.warning(f"Error when parsing '{string}' : {e}")
 
 
+def apply_usd_monthly_pricing(df: pd.DataFrame) -> pd.DataFrame:
+    logging.debug(f"Converting '{PRICE}' to monthly USD equivalents (vectorized)")
+
+    # Load and merge exchange rates
+    exchange_rates = ExchangeRate.database_entries()
+    exchange_rates = pd.DataFrame(exchange_rates).rename(columns={'USD': 'RATE_TO_USD'})
+
+    df = df.merge(exchange_rates, on=[DATE, CURRENCY], how='left')
+
+    # Compute days in month
+    df['days_in_month'] = df[DATE].dt.days_in_month
+    df[MONTHLY_USD_PRICE] = df[PRICE]
+
+    # Conversions to Monthly
+    is_daily = df[DURATION] == "Daily"
+    df.loc[is_daily, MONTHLY_USD_PRICE] *= df.loc[is_daily, 'days_in_month']
+
+    # Conversions to USD
+    is_not_usd = df[CURRENCY] != "USD"
+    df.loc[is_not_usd, MONTHLY_USD_PRICE] /= df.loc[is_not_usd, 'RATE_TO_USD']
+
+    df.drop(columns=['RATE_TO_USD', 'days_in_month'], inplace=True)
+
+    return df

@@ -10,17 +10,22 @@ load_dotenv()
 ''' BASIC CONFIG'''
 
 # General Settings
-ALWAYS_CLEAN = True
+ALWAYS_CLEAN = False
 SHOW_MISSING_ADDRESS = False
 
 FUZZY_MATCH_ACCURACY = 90
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
 logging.getLogger("graphviz").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
 
 ''' PATHS '''
 
@@ -39,7 +44,7 @@ TRANSLATIONS = REF_CSV / "translated.csv"
 GEOCODED = REF_CSV / "geocoded.csv"
 
 ARMENIAN_REGION = REF_JSON / "armenian_region.json"
-EXCHANGE_RATES = REF_JSON / "exchange_rates.json"
+EXCHANGE_RATES_PATH = REF_JSON / "exchange_rates.json"
 
 ''' KEYS '''
 

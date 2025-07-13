@@ -13,7 +13,6 @@ def load_raw_datasets() -> Tuple[DataFrame, DataFrame]:
     return (pd.read_csv(INPUTS / file, encoding="utf-8") for file in [TRAINING_FILE, TESTING_FILE])
 
 
-
 def load() -> tuple[DataFrame, DataFrame]:
     ''' Loads '''
     training, testing = load_raw_datasets()
@@ -21,12 +20,12 @@ def load() -> tuple[DataFrame, DataFrame]:
     addresses = load_address_mapping(training, testing)
     training = sanitize_data(training, TRAINING_FILE, addresses)
     testing = sanitize_data(testing, TESTING_FILE, addresses)
-    return training, testing
+    return training, testing, addresses
 
 
 if __name__ == '__main__':
     # python -m scripts.load
-    training, testing = load()
+    training, testing, addresses = load()
         
 
         

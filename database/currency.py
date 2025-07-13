@@ -1,12 +1,17 @@
 import json
-from collections import defaultdict
-from datetime import datetime
+from typing import TypedDict
+import pandas as pd
 from sqlalchemy import Column, Float, PrimaryKeyConstraint, String, Date
 from database import EXCHANGE_RATE
 from scripts.csv_columns import CURRENCY, DATE
 from database.base import Base
-from settings import EXCHANGE_RATES
+from settings import EXCHANGE_RATES_PATH
 
+
+class CurrencyBundle(TypedDict):
+    date: pd.Timestamp
+    currency: str
+    USD: float
 
 class Currency(Base):
     __tablename__ = CURRENCY
@@ -24,17 +29,25 @@ class ExchangeRate(Base):
     )
 
     @staticmethod
-    def load_exchange_rates():
-        with open(EXCHANGE_RATES, 'r') as file:
-            data: dict[str, dict[str, float]] = json.load(file)
+    def load_exchange_rates() -> dict[pd.Timestamp, dict[str, float]]:
+        if not EXCHANGE_RATES_PATH.exists():
+            raise FileNotFoundError(f"There is no file in {EXCHANGE_RATES_PATH}")
+        with open(EXCHANGE_RATES_PATH, 'r') as file:
+            data: dict = json.load(file)
+            return {
+                pd.to_datetime(date): rates
+                for date, rates in data.items()
+            }
 
-        row_values: list[dict[str, float]] = []
-        for _date, rates in data.items():
-            for currency, rate in rates.items():
-                date = datetime.strptime(_date, '%Y-%m-%d').date()
-                row_values.append({DATE: date, CURRENCY: currency, 'USD': rate})
+    @staticmethod
+    def database_entries() -> list[CurrencyBundle]:
+        exchange_rates = ExchangeRate.load_exchange_rates()
+        return [
+            {DATE: date, CURRENCY: currency, 'USD': rate}
+            for date, rates in exchange_rates.items()
+            for currency, rate in rates.items()
+        ]
 
-        return row_values
 
 
 

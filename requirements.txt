@@ -16,4 +16,10 @@ psycopg2-binary
 rapidfuzz
 sqlalchemy-schemadisplay 
 graphviz
-
+seaborn
+imbalanced-learn
+geopy
+plotly
+pingouin
+scikit_posthocs
+shap

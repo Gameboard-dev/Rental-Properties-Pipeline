@@ -21,6 +21,9 @@ FORMATTED = 'Formatted'
 RANK = 'Rank'
 LATITUDE = 'Latitude'
 LONGITUDE = 'Longitude'
+MONTHLY_USD_PRICE = 'Monthly USD Price'
+PRICE_CHANGE = 'Price Change'
+DISTANCE_FROM_CENTRE = 'Distance From Centre of Yerevan'
 PRICE = "Price"
 CURRENCY = "Currency"
 DATE = "Date"
@@ -41,8 +44,20 @@ LANE = 'Lane'
 BLOCK = 'Block'
 EXCLUSION_ID = 'EXCLUDED_ID'
 DROP_REASON = 'REASON'
+PLACE = "Place"
+ 
+AMENITIES_RANK = "Amenities_Rank"
+APPLIANCES_RANK = "Appliances_Rank"
+PARKING_RANK = "Parking_Rank"
+
+PRICE_BAND = "Price Band"
+
 ADDRESS_COLUMNS = [BUILDING, STREET, STREET_NUMBER, TOWN, BLOCK, LANE, ADMINISTRATIVE_UNIT, NEIGHBOURHOOD, PROVINCE, COUNTRY]
-PREFIX_MAPPING = {AMENITIES: 1, APPLIANCES: 2, PARKING: 3}
+PREFIX_MAPPING = {
+    AMENITIES: 1, 
+    APPLIANCES: 2, 
+    PARKING: 3
+}
 RENAMED = {"Children_are_welcome": CHILDREN_WELCOME,
     "Pets_allowed": PETS_ALLOWED,
     "Utility_payments": UTILITY_PAYMENTS,
@@ -56,4 +71,10 @@ RENAMED = {"Children_are_welcome": CHILDREN_WELCOME,
     "amenities": AMENITIES,
     "appliances": APPLIANCES,
     "parking": PARKING
+}
+
+PREFIX_TO_RANK_COLUMN = {
+    "1_": AMENITIES_RANK,
+    "2_": APPLIANCES_RANK,
+    "3_": PARKING_RANK,
 }

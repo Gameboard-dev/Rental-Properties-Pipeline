@@ -34,7 +34,7 @@ def build_upserts(df: pd.DataFrame) -> dict[str, list[dict[str, str]]]:
 
     upserts[ADMINISTRATIVE_UNIT] = administrative_pairs(df)
 
-    upserts[EXCHANGE_RATE] = ExchangeRate.load_exchange_rates()
+    upserts[EXCHANGE_RATE] = ExchangeRate.database_entries()
 
     # *PROPERTY Prerequisites
     upserts[LISTING] = df[LISTING_DB_COLUMNS].to_dict(orient='records')
@@ -111,7 +111,7 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
 
     df: pd.DataFrame = pd.concat([*datasets], ignore_index=True)
 
-    df = df.replace({pd.NA: None, np.nan: None, "": None}) # Renders NULL
+    df = df.replace({pd.NA: None, np.nan: None, "": None}) # Replaces various 'None' placeholders with 'None' which SQL Alchemy will compile as NULL
 
     df[ROW_INDEX] = df.index # Primary / Foreign of Properties / Listings
     
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     # python -m scripts.compile
     from scripts.load import load
 
-    training, testing = load()
+    training, testing, addresses = load()
     sql: str = compile_sql([training, testing])
     
     with open(SQL_PATH, "w", encoding="utf-8") as file: 

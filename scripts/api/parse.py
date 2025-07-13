@@ -48,13 +48,22 @@ def parse_azure_components(results) -> dict:
     """
 
     parsed = {}
+    formatted = None
 
     try:
 
         result = results[0]
+
+        if confidence :=  result.get("matchConfidence"):
+            if score := confidence.get("score"):
+                if score < 0.70:
+                    logging.info(f"Discarding Azure result with low confidence score {score}")
+                    return None, None
+
         address = result.get("address", {})
 
         if address:
+            formatted = address.get("freeformAddress")
             parsed[PROVINCE] = address.get("countrySubdivision")
             parsed[ADMINISTRATIVE_UNIT] = address.get("countrySecondarySubdivision") or address.get("municipality")
             parsed[NEIGHBOURHOOD] = address.get("neighbourhood")
@@ -73,7 +82,7 @@ def parse_azure_components(results) -> dict:
     except (KeyError, IndexError, TypeError) as e:
         logging.warning(f"Error parsing Azure components {results}: {e}")
 
-    return parsed
+    return parsed, formatted
 
 
 def parse_yandex_components(data: dict) -> dict:
@@ -89,6 +98,7 @@ def parse_yandex_components(data: dict) -> dict:
         geo = geo_objects[0]["GeoObject"]
         meta = geo["metaDataProperty"]["GeocoderMetaData"]
         components = meta["Address"]["Components"]
+        formatted = meta["Address"]["formatted"]
 
         # Map address components by 'kind'
         components_map = {comp["kind"]: comp["name"] for comp in components}
@@ -112,7 +122,7 @@ def parse_yandex_components(data: dict) -> dict:
     except (KeyError, IndexError, TypeError) as e:
         logging.warning(f"Error parsing Yandex components: {e}")
 
-    return parsed
+    return parsed, formatted
 
 
 def parse_libpostal_components(data) -> dict:

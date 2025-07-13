@@ -101,8 +101,8 @@ def assign_regex_match(row: pd.Series, pattern: re.Pattern, source_column: str, 
         value = str(row.get(source_column))
         trimmed, matched = separate_regex_match(value, pattern, reverse)
 
-        if existing_assign := str(row.get(assign_column, "")).strip():
-            matched = existing_assign
+        if not pd.isna(row.get(assign_column)) and str(row.get(assign_column)).strip():
+            matched = row[assign_column]
 
         for name, expanded in NUMBERED_STREETS.items():
             if assign_column == BUILDING and name in trimmed:
@@ -207,29 +207,83 @@ def separate_on_hardcoded_delimiters(row: pd.Series, index_columns: list[str]) -
         return pd.Series(dict(zip(index_columns, parts)))
 
 
+
+
+
+
 def separate_hardcoded_regional_labels(df: pd.DataFrame) -> pd.DataFrame:
-    """ Separates hardcoded Armenian regional label values (Province, Municipality, District, Settlement) into hardcoded columns """
+    """Separates hardcoded Armenian regional label values (Province, Municipality, District, Settlement) into hardcoded columns"""
 
-    (provinces, administrative_units_mapping, locality_mapping) = retrieve_armenian_regional_structure()
+    # Load mappings
+    provinces, administrative_units_mapping, locality_mapping = retrieve_armenian_regional_structure()
 
-    df[PROVINCE] = df[TRANSLATED].apply(lambda x: fuzzy_match(x, choices=provinces))
+    # Initial fuzzy match to Province
+    df["_province_guess"] = df.apply(
+        lambda row: fuzzy_match(row[TRANSLATED], choices=provinces), axis=1
+    )
 
+    # Preserve existing Province entries if present
+    df[PROVINCE] = df.apply(
+        lambda row: row[PROVINCE] if str(row[PROVINCE]) else row["_province_guess"], axis=1
+    )
+
+    # Fuzzy match to possible admin unit (but do not yet commit it)
+    df["_admin_guess"] = df.apply(
+        lambda row: fuzzy_match(row[TRANSLATED], choices=administrative_units_mapping.keys()) 
+        if not str(row[ADMINISTRATIVE_UNIT]).strip() else row[ADMINISTRATIVE_UNIT], axis=1
+    )
+
+    # Validate guessed admin unit against mapped Province
+    df["_admin_validated"] = df.apply(
+        lambda row: row["_admin_guess"] if administrative_units_mapping.get(row["_admin_guess"]) == row[PROVINCE] else "", axis=1
+    )
+
+    # Commit validated or existing admin unit
     df[ADMINISTRATIVE_UNIT] = df.apply(
-        lambda row: fuzzy_match(row[TRANSLATED], choices=administrative_units_mapping.keys()), axis=1
+        lambda row: row[ADMINISTRATIVE_UNIT] if row[ADMINISTRATIVE_UNIT] else row["_admin_validated"], axis=1
     )
 
-    df[TOWN] = df.apply(
-        lambda row: fuzzy_match(row[TRANSLATED], choices=locality_mapping.keys()) if row[PROVINCE] != "Yerevan" else "", axis=1
-    )
+
+    # Attempts to backfill if missing
 
     df[PROVINCE] = df.apply(
-        lambda row: reverse_lookup(row[ADMINISTRATIVE_UNIT], administrative_units_mapping) if not str(row[PROVINCE]).strip() else row[PROVINCE], axis=1
+        lambda row: reverse_lookup(row[ADMINISTRATIVE_UNIT], administrative_units_mapping)
+        if not str(row[PROVINCE]).strip() else row[PROVINCE], axis=1
     )
-        
+
     df[ADMINISTRATIVE_UNIT] = df.apply(
-        lambda row: reverse_lookup(row[TOWN], locality_mapping) if not str(row[ADMINISTRATIVE_UNIT]).strip() else row[ADMINISTRATIVE_UNIT], axis=1
+        lambda row: reverse_lookup(row[TOWN] or row[VILLAGE], locality_mapping)
+        if not row[ADMINISTRATIVE_UNIT] and (row[TOWN] or row[VILLAGE])
+        else row[ADMINISTRATIVE_UNIT],
+        axis=1
     )
 
+    def get_first_valid_admin(series: pd.Series) -> str:
+        valid_entries = series.dropna().loc[lambda s: s.str.strip() != ""]
+        return valid_entries.iloc[0] if not valid_entries.empty else pd.NA
 
+    # Step 1: Compute first valid administrative unit for each (Province, Street) group
+    admin_unit_lookup = (
+        df.groupby([PROVINCE, STREET])[ADMINISTRATIVE_UNIT]
+        .apply(get_first_valid_admin)
+        .rename("GROUP_ADMIN_UNIT")
+        .reset_index()
+    )
+
+    # Step 2: Merge group-level values back into the original DataFrame
+    df = df.merge(admin_unit_lookup, on=[PROVINCE, STREET], how="left")
+
+    # Step 3: Only fill missing or empty admin units
+    df[ADMINISTRATIVE_UNIT] = df.apply(
+        lambda row: row["GROUP_ADMIN_UNIT"]
+        if pd.isna(row[ADMINISTRATIVE_UNIT]) or str(row[ADMINISTRATIVE_UNIT]).strip() == ""
+        else row[ADMINISTRATIVE_UNIT],
+        axis=1
+    )
+
+    df.drop(columns=["GROUP_ADMIN_UNIT"], inplace=True)
+
+    # Drop temporary columns
+    df.drop(columns=["_province_guess", "_admin_guess", "_admin_validated"], inplace=True)
 
     return df

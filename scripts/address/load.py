@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from scripts.address import TESTING_INDEX_PREFIX, TRAINING_INDEX_PREFIX
@@ -44,15 +45,18 @@ def map_address_indices(training: DataFrame, testing: DataFrame) -> DataFrame:
 
 
 def remap_address_row_indices(training: DataFrame, testing: DataFrame, unique_addresses: DataFrame) -> DataFrame:
+    logging.info("Remapping address indices")
+
+    # Drop existing ADDRESS_INDEX column if it exists
+    for df in [unique_addresses, training, testing]:
+        if ADDRESS_INDEX in df.columns:
+            df.drop(columns=[ADDRESS_INDEX], inplace=True)
+
     address_indices_map: DataFrame = map_address_indices(training, testing)
 
     # Normalize address columns to ensure consistent merging
     address_indices_map[ADDRESS] = address_indices_map[ADDRESS].str.strip().str.lower()
     unique_addresses[ADDRESS] = unique_addresses[ADDRESS].str.strip().str.lower()
-
-    # Drop existing ADDRESS_INDEX column if it exists
-    if ADDRESS_INDEX in unique_addresses.columns:
-        unique_addresses = unique_addresses.drop(columns=[ADDRESS_INDEX])
 
     # Merge with full DataFrame
     unique_addresses = unique_addresses.merge(address_indices_map, on=ADDRESS, how="left")
@@ -65,7 +69,7 @@ def remap_address_row_indices(training: DataFrame, testing: DataFrame, unique_ad
     logging.info(f"{mapped} out of {total} unique addresses successfully mapped to indices.")
 
     if not missing.empty:
-        logging.warning(f"{len(missing)} addresses could not be mapped:")
+        logging.warning(f"{len(missing)} addresses could not be mapped: {missing}")
 
     unique_addresses.to_csv(ADDRESSES, index=False, encoding="utf-8-sig")
     logging.info("Saved and reindexed 'training' and 'testing' data on 'Address'")
@@ -125,17 +129,6 @@ def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFram
     
     unique_addresses[BLOCK] = ""; unique_addresses[LANE] = ""
     
-    logging.debug("Separating streets and cities on hardcoded delimiters.")
-
-    unique_addresses[[STREET, TOWN]] = unique_addresses.apply( # Uses "," and "›" separators for failed geocoding attempts.
-        lambda x: separate_on_hardcoded_delimiters(x, [STREET, TOWN])
-        , axis=1
-    ) 
-
-    logging.debug("Parsing hardcoded regional label values")
-
-    unique_addresses = separate_hardcoded_regional_labels(unique_addresses)
-
     logging.debug("Normalizing abbreviations / spaces / punctuation / ASCII")
 
     unique_addresses.update({
@@ -143,10 +136,21 @@ def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFram
         for col in [TRANSLATED, STREET, NEIGHBOURHOOD]
     })
 
+    logging.debug("Separating streets and cities on hardcoded delimiters.")
+
+    unique_addresses[[STREET, TOWN]] = unique_addresses.apply( # Uses "," and "›" separators for failed geocoding attempts.
+        lambda x: separate_on_hardcoded_delimiters(x, [STREET, TOWN])
+        , axis=1
+    ) 
+
     logging.debug("Separating streets into unique components.")
 
     unique_addresses = separate_into_unique_components(unique_addresses) # [Lane / Block / Neighbourhood / Building] regex pattern extraction. Fixes LibPostal putting districts into streets.
     
+    logging.debug("Parsing hardcoded regional label values")
+
+    unique_addresses = separate_hardcoded_regional_labels(unique_addresses)
+
     logging.debug("Mapping row address indices in training and testing sets.")
 
     unique_addresses[ADDRESS_COLUMNS] = unique_addresses[ADDRESS_COLUMNS].apply(string_casts) # Uses Pandas "string" dtype
@@ -154,11 +158,10 @@ def process_address_mapping(training: DataFrame, testing: DataFrame) -> DataFram
     address_indices_map: DataFrame = map_address_indices(training, testing) # Map row indices in datasets to lists of row indices in unique_addresses
     unique_addresses = unique_addresses.merge(address_indices_map, on=ADDRESS, how="left")
 
-    unique_addresses.to_csv(ADDRESSES, index=False, encoding="utf-8-sig")
-
+    unique_addresses.to_csv(ADDRESSES, index=False, encoding="utf-8-sig", na_rep="")
     logging.debug("All addresses have been parsed and saved.")
 
-    unique_addresses = explode_addresses_on_index(unique_addresses, ADDRESS_INDEX) # Creates a separate row for each index mapping.
+    #unique_addresses = explode_addresses_on_index(unique_addresses, ADDRESS_INDEX) # Creates a separate row for each index mapping.
     return unique_addresses
 
 
