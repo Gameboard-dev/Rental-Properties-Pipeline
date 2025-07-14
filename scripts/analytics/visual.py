@@ -86,9 +86,10 @@ class GraphType(Enum):
     VIOLIN = "violin"
 
 
-def draw_box_plots(df: pd.DataFrame, column_x: str, column_y: str):
-    r, p_value = pointbiserialr(df['Duration == Monthly'], df[ROOMS])
-    logging.info(f"Point Biserial Correlation {r} with p-value {p_value}")
+def draw_box_plots(df: pd.DataFrame, column_x: str, column_y: str, biserial: bool = True):
+    if biserial:
+        r, p_value = pointbiserialr(df[column_x], df[column_y])
+        logging.info(f"Point Biserial Correlation {r} with p-value {p_value}")
     sns.boxplot(data=df, x=column_x, y=column_y)
     plt.title(f'{column_x} vs {column_y}')
     plt.xlabel(column_x)
@@ -169,6 +170,8 @@ def build_hover_data(df: pd.DataFrame, change_type: str, group_columns: list[str
     hover = {}
     if group_columns[0] == ROOMS:
         return {ROOMS: True}
+    if group_columns[0] == CONSTRUCTION:
+        return {CONSTRUCTION: True}
     if PRICE_CHANGE in df.columns:
         hover[PRICE_CHANGE] = ':.1%' if change_type == "percent" else ':.2f'
     for col in [PROVINCE, ADMINISTRATIVE_UNIT, DISTANCE_FROM_CENTRE, "Count", PLACE]:
@@ -176,47 +179,53 @@ def build_hover_data(df: pd.DataFrame, change_type: str, group_columns: list[str
             hover[col] = ':.2f' if col == DISTANCE_FROM_CENTRE else True
     return hover
 
-def build_bar_plots(df, x_axis, label, change_type) -> go.Figure:
 
-    bar_df = df[[x_axis, PRICE_CHANGE, 'StdDev', 'Count']].drop_duplicates()
-    bar_df.columns = [x_axis, 'mean_price', 'std_price', 'Count']
+def build_bar_plots(df, x_axis, y_col, label, hover_data, change_type) -> go.Figure:
+    logging.info(f"X Axis: {x_axis}")
 
-    bar_df[x_axis] = pd.Categorical(bar_df[x_axis], categories=df[x_axis].cat.categories, ordered=True)
-
-    # Build hover data only from columns present
-    hover_data = {
-        'mean_price': ':.1%' if change_type == ChangeMethod.PERCENT else ':.2f',
-        'std_price': ':.2f',
-        'Count': True
-    }
+    if change_type is None:
+        bar_df = df[[x_axis, y_col]]
+        bar_df.columns = [x_axis, y_col]
+        
+    else:
+        y_col = 'mean_price'
+        bar_df = df[[x_axis, PRICE_CHANGE, 'StdDev', 'Count']].drop_duplicates()
+        bar_df.columns = [x_axis, y_col, 'std_price', 'Count']
+        bar_df[x_axis] = pd.Categorical(bar_df[x_axis], categories=df[x_axis].cat.categories, ordered=True)
+        hover_data = {
+            y_col: ':.1%' if change_type == ChangeMethod.PERCENT else ':.2f',
+            'std_price': ':.2f',
+            'Count': True
+        }
 
     texttemplate = '%{y:.1f}%' if change_type == ChangeMethod.PERCENT else '%{y:.2f}'
 
     fig = px.bar(
         bar_df,
         x=x_axis,
-        y='mean_price',
+        y=y_col,
         hover_data=hover_data,
         title=f"Rental Price by {x_axis}",
-        labels={'mean_price': label, x_axis: x_axis}
+        labels={y_col: label, x_axis: x_axis}
     )
 
-    fig.add_trace(go.Bar(
+    bar_kwargs = dict(
         x=bar_df[x_axis],
-        y=bar_df['mean_price'],
-        error_y=dict(type='data', array=bar_df['std_price'], visible=True),
+        y=bar_df[y_col],
         name='Price',
         marker_color='indigo',
-        text=bar_df['mean_price'],
+        text=bar_df[y_col],
         textposition='outside'
-    ))
-
-    fig.update_traces(
-        texttemplate=texttemplate,
-        textposition='outside',
-        marker_color='indigo',
     )
-    fig.update_layout(xaxis=dict(categoryorder='array', categoryarray=bar_df[x_axis].cat.categories.tolist()))
+
+    if change_type is not None:
+        bar_kwargs['error_y'] = dict(type='data', array=bar_df['std_price'], visible=True)
+
+    fig.add_trace(go.Bar(**bar_kwargs))
+
+    fig.update_traces(texttemplate=texttemplate)
+    #fig.update_layout(xaxis=dict(categoryorder='array', categoryarray=bar_df[x_axis].cat.categories.tolist()))
+
     return fig
 
 
@@ -326,7 +335,6 @@ def run_column_checks(df: pd.DataFrame, required_columns: list[str]):
     return df
 
 
-
 def prepare_visualization_data(
     df: pd.DataFrame,
     group_columns: list[str],
@@ -424,6 +432,8 @@ def visualize_price_stats(
     y_col = PRICE_CHANGE if change_method else MONTHLY_USD_PRICE
     hover_data = build_hover_data(df, change_method, group_columns)
 
+    logging.info(f"Using {y_col}")
+
     fig = None
     match graph_type:
         case GraphType.SCATTER:
@@ -431,7 +441,7 @@ def visualize_price_stats(
         case GraphType.VIOLIN:
             fig = build_violin_plots(df, x_axis, label, hover_data)
         case GraphType.BAR:
-            fig = build_bar_plots(df, x_axis, label, change_method)  # Note: you’ll want change_type here to fix hover
+            fig = build_bar_plots(df, x_axis, y_col, label, hover_data, change_method)  # Note: you’ll want change_type here to fix hover
 
     if fig:
         fig.update_layout(template='plotly_white', dragmode='zoom', hovermode='closest', xaxis_tickangle=45)
@@ -447,6 +457,8 @@ class VisualizationPreset(Enum):
     CORRELATION_PROPERTY_FEATURES = auto()
     BOX_PLOTS = auto()
     ROOMS_V_PRICE = auto()
+    FLOOR_AREA_RENTAL_PRICE = auto()
+    CORRELATE_CONSTRUCTION = auto()
 
 
 if __name__ == "__main__":
@@ -455,7 +467,7 @@ if __name__ == "__main__":
 
     from scripts.load import load
 
-    PRESET = VisualizationPreset.CORRELATION_PROPERTY_FEATURES
+    PRESET = VisualizationPreset.BOX_PLOTS
 
     training, testing, addresses = load()
     df = pd.concat([training, testing], ignore_index=True)
@@ -488,10 +500,25 @@ if __name__ == "__main__":
             min_sample=100,
         )
 
+    elif PRESET == VisualizationPreset.FLOOR_AREA_RENTAL_PRICE:
+        visualize_price_stats(
+            df,
+            group_columns=[FLOOR_AREA],
+            graph_type=GraphType.SCATTER,
+            change_method=ChangeMethod.LOG,
+            min_sample=10,
+        )
+
+
     elif PRESET == VisualizationPreset.BOX_PLOTS: # Biserial
         df['Duration == Monthly'] = df[DURATION] == "Monthly"
-        draw_box_plots(df, DURATION, MONTHLY_USD_PRICE)
-        draw_box_plots(df, DURATION, ROOMS)
+        draw_box_plots(df, 'Duration == Monthly', MONTHLY_USD_PRICE)
+        draw_box_plots(df, 'Duration == Monthly', ROOMS)
+        draw_correlation_matrix(df[['Duration == Monthly', ROOMS, MONTHLY_USD_PRICE]], binary_columns=['Duration == Monthly'])
+        
+
+    elif PRESET == VisualizationPreset.CORRELATE_CONSTRUCTION:
+        draw_box_plots(df, CONSTRUCTION, MONTHLY_USD_PRICE, biserial=False)
 
     elif PRESET == VisualizationPreset.ROOMS_V_PRICE:
         visualize_price_stats(

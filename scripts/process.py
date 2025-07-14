@@ -72,16 +72,24 @@ def remove_grouped_outliers(
     return cleaned_df, retained_indices
 
 
-def clean_and_comma_separate(row_value: str) -> list[str]:
+def clean_and_comma_separate(row_value: str, column: str) -> list[str]:
     if pd.isna(row_value):
         return []
-    return [
-        normalized_value for value in row_value.split(',')
-        if (normalized_value := normalize_string(value)).strip().lower() not in {'', 'nan'}
+
+    # Normalize strings
+    values = [
+        normalize_string(value)
+        for value in row_value.split(',')
+        if normalize_string(value).strip().lower() not in {'', 'nan'}
     ]
 
+    if column.lower() == 'amenities':
+        values = [val for val in values if val != 'Parking Space']
 
-def explode_and_dummify(series: pd.Series, prefix: str) -> pd.DataFrame:
+    return values
+
+
+def explode_and_dummify(series: pd.Series, prefix: str, column: str) -> pd.DataFrame:
     '''
 
     Step 1: Clean and comma-separate each entry into lists:
@@ -90,7 +98,8 @@ def explode_and_dummify(series: pd.Series, prefix: str) -> pd.DataFrame:
     |----------------------|--------------------------------------------|--------------------|
     | ["air_conditioner"]  | ["fridge", "stove", "washing_machine"]     | ["outdoor_parking"]|
 
-    Step 2: Flatten the lists so each value gets its own row. The index is then repeated for strings from the same row.
+    Step 2: Flatten the lists so that each value gets its own row. 
+    The index is then repeated for strings of the same row.
     --------------------------------------------------------
     | Index | Value              |
     |-------|--------------------|
@@ -110,7 +119,7 @@ def explode_and_dummify(series: pd.Series, prefix: str) -> pd.DataFrame:
     | 1                 | 1        | 1       | 1                  | 1                 |
 
     '''
-    exploded: pd.Series = series.apply(clean_and_comma_separate).explode()
+    exploded: pd.Series = series.apply(lambda row : clean_and_comma_separate(row, column)).explode()
     return (
         pd.get_dummies(exploded, prefix=prefix)
         .groupby(level=0)
@@ -303,7 +312,7 @@ def sanitize_data(df: DataFrame, filename: str, addresses: DataFrame = DataFrame
     ].copy()
 
     # Outlier Removal
-    percentile = 0.05 # 5% -- 95% -- 5%
+    percentile = 5 # 5% -- 95% -- 5%
     lower_decimal = percentile / 100; 
     upper_decimal = 1 - lower_decimal
 
@@ -340,8 +349,10 @@ def sanitize_data(df: DataFrame, filename: str, addresses: DataFrame = DataFrame
     df[ADDRESS_COLUMNS] = df[ADDRESS_COLUMNS].apply(string_casts) 
 
     # Flatten and binary-encode comma-delimited amenities, appliances, and parking, into prefixed columns
-    dummies = [explode_and_dummify(df[column], prefix) for column, prefix in PREFIX_MAPPING.items()]
+    dummies = [explode_and_dummify(df[column], prefix, column) for column, prefix in PREFIX_MAPPING.items()]
     df = pd.concat([df.drop(columns=PREFIX_MAPPING.keys())] + dummies, axis=1) 
+
+
 
     # ------ Modelling Features ----------
     df[PRICE_BAND] = pd.cut(df[MONTHLY_USD_PRICE], bins=[0, 800, 2000, np.inf], labels=["Cheap", "Affordable", "Expensive"])

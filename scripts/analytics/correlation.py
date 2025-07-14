@@ -75,7 +75,6 @@ def draw_correlation_matrix(column_series: pd.DataFrame, binary_columns: list = 
                 corr_matrix.loc[row, col] = np.nan
                 pval_matrix.loc[row, col] = np.nan
 
-    # Create labels for heatmap
     labels = pd.DataFrame("", index=columns, columns=columns)
     for row in columns:
         for col in columns:

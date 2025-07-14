@@ -17,11 +17,11 @@ from scripts.csv_columns import *
 # ---------------------- Constants ----------------------
 
 CLUSTERS: int = 3
-PCA_N: int = 4
-SHAPLEY_ADDITIVE_EXPLANATIONS = False
+PCA_N: int = 3
+SHAPLEY_ADDITIVE_EXPLANATIONS = True
 
-NUMERIC_COLUMNS: list[str] = [FLOOR_AREA, ROOMS, APPLIANCES_RANK, AMENITIES_RANK]
-CATEGORICAL_COLUMNS: list[str] = [ADMINISTRATIVE_UNIT, CONSTRUCTION, RENOVATION, STREET, PRICE_BAND]
+NUMERIC_COLUMNS: list[str] = [DURATION, APPLIANCES_RANK, AMENITIES_RANK]
+CATEGORICAL_COLUMNS: list[str] = [ADMINISTRATIVE_UNIT, CONSTRUCTION, RENOVATION, STREET]
 
 SHAPLEY_LABEL_REGEX = re.compile(
     r'^(cat_|num_)?(?:' + '|'.join([re.escape(col) for col in NUMERIC_COLUMNS + CATEGORICAL_COLUMNS]) + r')_(?P<value>.+)$'
@@ -193,6 +193,8 @@ if __name__ == "__main__":
     # Load and prepare full dataset
     df1, df2, _ = load()
     df = pd.concat([df1, df2], ignore_index=True)
+
+    df[DURATION] = df[DURATION] == "Monthly"
 
     # Cluster the data, add cluster labels, and assign splitting with labelled rows
     train_df, test_df, transformer = assign_clusters_and_sample(df)

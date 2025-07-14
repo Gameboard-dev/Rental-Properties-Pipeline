@@ -113,11 +113,11 @@ def apply_usd_monthly_pricing(df: pd.DataFrame) -> pd.DataFrame:
     df['days_in_month'] = df[DATE].dt.days_in_month
     df[MONTHLY_USD_PRICE] = df[PRICE]
 
-    # Conversions to Monthly
+    # Conditional Monthly Conversion
     is_daily = df[DURATION] == "Daily"
     df.loc[is_daily, MONTHLY_USD_PRICE] *= df.loc[is_daily, 'days_in_month']
 
-    # Conversions to USD
+    # Conditional USD Conversion
     is_not_usd = df[CURRENCY] != "USD"
     df.loc[is_not_usd, MONTHLY_USD_PRICE] /= df.loc[is_not_usd, 'RATE_TO_USD']
 

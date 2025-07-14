@@ -166,7 +166,6 @@ def compile_sql(datasets: list[pd.DataFrame]) -> str:
     return '\n'.join(sql)
 
 
-
 if __name__ == "__main__":
 
     # python -m scripts.compile
