@@ -93,10 +93,17 @@ The high exclusion count in Fig. 1B—relative to the total of 33,175 records—
 | 2. Inadequate time-series length (< 2 records) to compute statistics     | 15      | 75      |
 | 3. Aggregate size was below the minimum sample size (100)                | 680     | 472     |
 
+Note that, due to low data size, changing the outliers from 1% to 5% changes the distribution, but Kentron remains at the top (expensive), and Gyumri at the bottom (affordable).
+
+<img width="1896" height="938" alt="newplot" src="https://github.com/user-attachments/assets/6c9f5fad-ba83-4aac-9bcb-eef832a5d8fc" />
 
 <img width="1886" height="906" alt="image" src="https://github.com/user-attachments/assets/4cc9ed76-f08f-4863-9bd2-bdcdfc6b4aed" />
 
-Note that, due to low data size, changing the outlier percentiles changes the graph's distribution, but Kentron remains at the top (expensive), and Gyumri at the bottom (affordable).
+<img width="1733" height="890" alt="image" src="https://github.com/user-attachments/assets/ed4f3ed3-7ef4-4aa2-8fb5-3b5809093f9a" />
+
+<img width="763" height="590" alt="image" src="https://github.com/user-attachments/assets/9005f2c4-dcff-450b-9eca-1f98673221c6" />
+
+<img width="1457" height="869" alt="image" src="https://github.com/user-attachments/assets/91076a0f-cc64-449e-8b0e-c70ea722a138" />
 
 ---
 
