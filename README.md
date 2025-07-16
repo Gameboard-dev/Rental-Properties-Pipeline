@@ -85,13 +85,13 @@ The pipeline is primarily designed to parse Armenian addresses into normalized c
 
 The following charts were generated using Seaborn and Matplotlib and can be reproduced in `scripts/analytics/visual`. You are recommended to use Visual Studio Code. To preserve statistical validity and reduce noise, rows with empty group attributes were excluded. Filtering was then applied to remove subgroups—defined by a combination of Province and Administrative Area—with fewer than 100 entries. Though subjective, 100 chosen to strike a balance between inclusion and statistical reliability. Higher cutoffs excluded too many minority groups and skewed the analysis toward Yerevan, while the 100-row minimum helped to eliminate sparse or unrepresentative samples. 
 
-The high exclusion count in Fig. 1B—relative to the total of 33,175 records—was mainly due to many addresses missing a clearly defined street. Without this, it was not possible to group listings at the street level to calculate the standard deviation of average price changes over the (many) streetwise time series.
+The high exclusion count in Fig. 1B—relative to the total of 44,415 records—was mainly due to many addresses missing a clearly defined street. Without this, it was not possible to group listings at the street level to calculate the standard deviation of average price changes over the (many) streetwise time series.
 
 | Reason for Exclusion                                                     | Fig. 1A | Fig. 1B |
 |--------------------------------------------------------------------------|---------|---------|
-| 1. Required attribute was NULL                                           | 164     | 4493    |
-| 2. Inadequate time-series length (< 2 records) to compute statistics     | 15      | 75      |
-| 3. Aggregate size was below the minimum sample size (100)                | 680     | 472     |
+| 1. Required attribute was NULL                                           | 149     | 4529    |
+| 2. Inadequate time-series length (< 2 records) to compute statistics     | 13      | 72      |
+| 3. Aggregate size was below the minimum sample size (100)                | 644     | 425     |
 
 Note that, due to low data size, changing the outliers from 5% to 1% (or vice versa) changes the data distribution, but Kentron remains at the top (expensive), and Gyumri at the bottom (affordable). In all instances, the average chosen is the median, which is less affected by outliers and skew.
 
