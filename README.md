@@ -83,7 +83,7 @@ The pipeline is primarily designed to parse Armenian addresses into normalized c
 
 ### Data Analytics
 
-The following charts were generated using Seaborn and Matplotlib and can be reproduced in `scripts/analytics/visual`. To preserve statistical validity and reduce noise, rows with empty group attributes were excluded. Filtering was then applied to remove subgroups—defined by a combination of Province and Administrative Area—with fewer than 100 entries. Though subjective, 100 chosen to strike a balance between inclusion and statistical reliability. Higher cutoffs excluded too many minority groups and skewed the analysis toward Yerevan, while the 100-row minimum helped to eliminate sparse or unrepresentative samples. 
+The following charts were generated using Seaborn and Matplotlib and can be reproduced in `scripts/analytics/visual`. You are recommended to use Visual Studio Code. To preserve statistical validity and reduce noise, rows with empty group attributes were excluded. Filtering was then applied to remove subgroups—defined by a combination of Province and Administrative Area—with fewer than 100 entries. Though subjective, 100 chosen to strike a balance between inclusion and statistical reliability. Higher cutoffs excluded too many minority groups and skewed the analysis toward Yerevan, while the 100-row minimum helped to eliminate sparse or unrepresentative samples. 
 
 The high exclusion count in Fig. 1B—relative to the total of 33,175 records—was mainly due to many addresses missing a clearly defined street. Without this, it was not possible to group listings at the street level to calculate the standard deviation of average price changes over the (many) streetwise time series.
 
