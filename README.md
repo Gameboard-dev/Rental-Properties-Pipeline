@@ -93,7 +93,7 @@ The high exclusion count in Fig. 1B—relative to the total of 33,175 records—
 | 2. Inadequate time-series length (< 2 records) to compute statistics     | 15      | 75      |
 | 3. Aggregate size was below the minimum sample size (100)                | 680     | 472     |
 
-Note that, due to low data size, changing the outliers from 5% to 1% (or vice versa) changes the data distribution, but Kentron remains at the top (expensive), and Gyumri at the bottom (affordable).
+Note that, due to low data size, changing the outliers from 5% to 1% (or vice versa) changes the data distribution, but Kentron remains at the top (expensive), and Gyumri at the bottom (affordable). In all instances, the average chosen is the median, which is less affected by outliers and skew.
 
 <img width="1896" height="938" alt="newplot" src="https://github.com/user-attachments/assets/6c9f5fad-ba83-4aac-9bcb-eef832a5d8fc" />
 
