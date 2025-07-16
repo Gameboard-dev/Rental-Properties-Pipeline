@@ -467,7 +467,7 @@ if __name__ == "__main__":
 
     from scripts.load import load
 
-    PRESET = VisualizationPreset.BOX_PLOTS
+    PRESET = VisualizationPreset.PERCENT_CHANGE_ADMIN_WITH_STREETWISE_DEVIATION
 
     training, testing, addresses = load()
     df = pd.concat([training, testing], ignore_index=True)

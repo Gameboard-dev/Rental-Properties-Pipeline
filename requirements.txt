@@ -6,10 +6,8 @@ azure-maps-search
 azure-core
 numpy
 tqdm
-sentence_transformers
-hdbscan
 folium
-sklearn
+scikit-learn
 matplotlib
 sqlalchemy
 psycopg2-binary

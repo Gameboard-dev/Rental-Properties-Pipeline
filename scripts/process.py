@@ -312,7 +312,7 @@ def sanitize_data(df: DataFrame, filename: str, addresses: DataFrame = DataFrame
     ].copy()
 
     # Outlier Removal
-    percentile = 5 # 5% -- 95% -- 5%
+    percentile = 1
     lower_decimal = percentile / 100; 
     upper_decimal = 1 - lower_decimal
 
@@ -333,7 +333,7 @@ def sanitize_data(df: DataFrame, filename: str, addresses: DataFrame = DataFrame
     # Map a MONTHLY_USD_PRICE onto each row for modelling purposes
     df = apply_usd_monthly_pricing(df)
     original_df[MONTHLY_USD_PRICE] = df[MONTHLY_USD_PRICE] = df[MONTHLY_USD_PRICE].astype(float)
-    filtered, outlier_idx = remove_outliers(df[MONTHLY_USD_PRICE], 0.01, 0.99)
+    filtered, outlier_idx = remove_outliers(df[MONTHLY_USD_PRICE], lower_decimal, upper_decimal)
     log_drop_reason(original_df, df.loc[list(outlier_idx), EXCLUSION_ID], DROP_REASON, f"The Monthly USD price was outside a 1% IQR (Inter-Quartile Range)")
     df = df.loc[filtered.index].reset_index(drop=True)
 
